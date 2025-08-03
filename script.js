@@ -6,6 +6,7 @@ let settings = {
     model: 'gemini-1.5-flash',
     temperature: 0.7,
     fontSize: 16, // حجم الخط الافتراضي
+    chatOrder: [], // ترتيب المحادثات
     geminiApiKeys: [],
     openrouterApiKeys: [],
     customProviders: [], // قائمة المزودين المخصصين مع مفاتيح API متعددة لكل مزود
@@ -99,6 +100,19 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('welcomeScreen').classList.add('hidden');
         document.getElementById('messagesContainer').classList.remove('hidden');
         displayMessages();
+    }
+
+    const chatHistoryEl = document.getElementById('chatHistory');
+    if (chatHistoryEl) {
+        new Sortable(chatHistoryEl, {
+            animation: 150,
+            ghostClass: 'blue-background-class',
+            onEnd: function (evt) {
+                const newOrder = Array.from(evt.to.children).map(el => el.dataset.chatId);
+                settings.chatOrder = newOrder;
+                saveData();
+            }
+        });
     }
 });
 
@@ -1392,6 +1406,16 @@ function updateChat(chatId, newTitle = null) {
         if (newTitle) {
             chats[chatId].title = newTitle;
         }
+
+        // Remove the chat ID from its current position in the order
+        const index = settings.chatOrder.indexOf(chatId);
+        if (index > -1) {
+            settings.chatOrder.splice(index, 1);
+        }
+
+        // Add the chat ID to the beginning of the order
+        settings.chatOrder.unshift(chatId);
+
         saveData();
         displayChatHistory();
     }
@@ -1419,7 +1443,24 @@ function displayChatHistory() {
     const chatHistory = document.getElementById('chatHistory');
     chatHistory.innerHTML = '';
     
-    const sortedChats = Object.values(chats).sort((a, b) => b.updatedAt - a.updatedAt);
+    let allChats = Object.values(chats);
+    let sortedChats = [];
+
+    if (settings.chatOrder && settings.chatOrder.length > 0) {
+        // First, add chats that are in the chatOrder array, in that order
+        settings.chatOrder.forEach(chatId => {
+            const chat = allChats.find(c => c.id === chatId);
+            if (chat) {
+                sortedChats.push(chat);
+            }
+        });
+        // Then, add any new chats that are not in chatOrder to the top
+        const newChats = allChats.filter(c => !settings.chatOrder.includes(c.id));
+        sortedChats = [...newChats.sort((a, b) => b.createdAt - a.createdAt), ...sortedChats];
+    } else {
+        // If no order is set, sort by updatedAt
+        sortedChats = allChats.sort((a, b) => b.updatedAt - a.updatedAt);
+    }
     
     if (sortedChats.length === 0) {
         chatHistory.innerHTML = `
@@ -1435,6 +1476,7 @@ function displayChatHistory() {
     sortedChats.forEach(chat => {
         const chatItem = document.createElement('div');
         chatItem.className = `p-3 rounded-lg cursor-pointer transition-colors ${chat.id === currentChatId ? 'bg-zeus-accent text-white' : 'hover:bg-white/10 text-gray-300'}`;
+        chatItem.dataset.chatId = chat.id; // Add data-id for SortableJS
         
         const lastMessage = chat.messages[chat.messages.length - 1];
         const preview = lastMessage ? (lastMessage.content.substring(0, 50) + (lastMessage.content.length > 50 ? '...' : '')) : 'محادثة فارغة';

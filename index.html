@@ -12,6 +12,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/xml.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
     <script>
         tailwind.config = {
             theme: {
@@ -337,19 +338,19 @@
                             </div>
                             
                             <div class="flex items-end space-x-3 space-x-reverse">
-                                <div class="flex-1 relative">
+                                <div class="flex-1 relative flex items-center">
                                     <textarea
                                         id="messageInput"
                                         placeholder="اكتب رسالتك هنا..."
-                                        class="chat-input w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-xl text-white placeholder-gray-400 focus:ring-2 focus:ring-zeus-accent focus:border-transparent resize-none"
+                                        class="chat-input w-full px-4 py-3 pr-12 bg-gray-800 border border-gray-700 rounded-xl text-white placeholder-gray-400 focus:ring-2 focus:ring-zeus-accent focus:border-transparent resize-none"
                                         rows="1"
                                         style="max-height: 128px;"
                                     ></textarea>
+                                    <label for="fileInput" class="absolute right-3 top-1/2 transform -translate-y-1/2 cursor-pointer text-gray-400 hover:text-gray-200 transition-colors">
+                                        <i class="fas fa-paperclip text-xl"></i>
+                                        <input type="file" id="fileInput" multiple class="hidden" onchange="handleFileSelection(this)">
+                                    </label>
                                 </div>
-                                <label for="fileInput" class="p-2 rounded-lg text-gray-400 hover:text-gray-200 hover:bg-gray-800 transition-colors cursor-pointer">
-                                    <i class="fas fa-paperclip text-lg"></i>
-                                    <input type="file" id="fileInput" multiple class="hidden" onchange="handleFileSelection(this)">
-                                </label>
                                 <button
                                     id="sendButton"
                                     onclick="sendMessage()"
