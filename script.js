@@ -865,11 +865,7 @@ function completeStreamingMessage() {
             content: streamingState.currentText,
             timestamp: Date.now()
         });
-        chats[currentChatId].updatedAt = Date.now(); // تحديث وقت آخر رسالة
-        
-        // Save data to localStorage
-        saveData();
-        displayChatHistory(); // تحديث قائمة المحادثات
+        updateChat(currentChatId);
     }
     
     // Reset streaming state
@@ -955,12 +951,10 @@ async function sendMessage() {
         
         // Add user message to chat
         chats[currentChatId].messages.push(userMessage);
-        chats[currentChatId].updatedAt = Date.now(); // تحديث وقت آخر رسالة
-        saveData(); // حفظ البيانات فوراً
+        updateChat(currentChatId);
         
         // Display user message with file cards
         displayUserMessage(userMessage);
-        displayChatHistory(); // تحديث قائمة المحادثات لتعكس الترتيب الجديد
         
         // Scroll to show new message
         setTimeout(() => scrollToBottom(), 100);
@@ -1392,6 +1386,17 @@ function updateSendButton() {
 }
 
 // Chat management functions
+function updateChat(chatId, newTitle = null) {
+    if (chats[chatId]) {
+        chats[chatId].updatedAt = Date.now();
+        if (newTitle) {
+            chats[chatId].title = newTitle;
+        }
+        saveData();
+        displayChatHistory();
+    }
+}
+
 async function startNewChat() {
     const chatId = Date.now().toString();
     currentChatId = chatId;
@@ -1407,8 +1412,7 @@ async function startNewChat() {
     document.getElementById('messagesContainer').classList.add('hidden');
     document.getElementById('messagesArea').innerHTML = '';
     
-    displayChatHistory();
-    saveData();
+    updateChat(chatId);
 }
 
 function displayChatHistory() {
@@ -1481,15 +1485,7 @@ function renameChat(chatId, event) {
     const newTitle = prompt('أدخل الاسم الجديد للمحادثة:', chat.title);
 
     if (newTitle && newTitle.trim() !== '') {
-        chat.title = newTitle.trim();
-        chat.updatedAt = Date.now();
-        displayChatHistory();
-        saveData();
-        // تحديث العنوان في الهيدر إذا كانت هي المحادثة الحالية
-        if (currentChatId === chatId) {
-            // This part is a potential improvement, but let's stick to the main goal.
-            // For now, the title in the history list will update.
-        }
+        updateChat(chatId, newTitle.trim());
     }
 }
 
