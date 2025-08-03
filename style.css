@@ -924,19 +924,3 @@ pre code .hljs-title {
         max-width: 95%;
     }
 }
-
-/* Drag and Drop Styles */
-.dragging {
-    opacity: 0.4;
-    cursor: grabbing;
-}
-
-.drop-indicator {
-    height: 2px;
-    background-color: #10a37f; /* zeus-accent */
-    width: 100%;
-    margin: 2px 0;
-    border-radius: 1px;
-    animation: fadeIn 0.2s ease-out;
-    list-style-type: none; /* Ensure it doesn't get a list bullet */
-}
