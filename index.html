@@ -12,7 +12,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/xml.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
     <script>
         tailwind.config = {
             theme: {
@@ -176,15 +176,15 @@
                         <span id="temperatureValue" class="text-sm text-gray-600 dark:text-gray-400">0.7</span>
                     </div>
 
-                    <!-- Font Size Section -->
                     <div class="settings-section">
-                        <label for="fontSizeSlider" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">حجم خط الرسائل</label>
-                        <div class="flex items-center space-x-4 space-x-reverse">
-                            <span class="text-sm text-gray-500 dark:text-gray-400">صغير</span>
-                            <input type="range" id="fontSizeSlider" min="12" max="24" step="1" class="w-full accent-zeus-accent">
-                            <span class="text-sm text-gray-500 dark:text-gray-400">كبير</span>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">حجم الخط في المحادثة</label>
+                        <div class="flex items-center space-x-3 space-x-reverse">
+                            <input type="range" id="fontSizeSlider" min="12" max="24" step="1" value="16" class="w-full accent-zeus-accent">
+                            <span id="fontSizeValue" class="text-sm text-gray-600 dark:text-gray-400 w-12 text-center">16px</span>
                         </div>
-                        <span id="fontSizeValue" class="block text-center text-sm text-gray-600 dark:text-gray-400 mt-1">18px</span>
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                            تحكم في حجم الخط لرسائل المحادثة.
+                        </p>
                     </div>
                 </div>
             </div>
@@ -338,7 +338,7 @@
                             </div>
                             
                             <div class="flex items-end space-x-3 space-x-reverse">
-                                <div class="flex-1 relative">
+                                <div class="flex-1 relative flex items-center">
                                     <textarea
                                         id="messageInput"
                                         placeholder="اكتب رسالتك هنا..."
@@ -346,8 +346,8 @@
                                         rows="1"
                                         style="max-height: 128px;"
                                     ></textarea>
-                                    <label for="fileInput" class="absolute left-3 top-1/2 transform -translate-y-1/2 cursor-pointer text-gray-400 hover:text-gray-200 transition-colors">
-                                        <i class="fas fa-paperclip text-lg"></i>
+                                    <label for="fileInput" class="absolute right-3 top-1/2 transform -translate-y-1/2 cursor-pointer text-gray-400 hover:text-gray-200 transition-colors">
+                                        <i class="fas fa-paperclip text-xl"></i>
                                         <input type="file" id="fileInput" multiple class="hidden" onchange="handleFileSelection(this)">
                                     </label>
                                 </div>
