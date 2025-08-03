@@ -791,6 +791,18 @@ function clearFileInput() {
 function createStreamingMessage(sender = 'assistant') {
     const messageId = Date.now().toString();
     const messagesArea = document.getElementById('messagesArea');
+
+    if (currentChatId && chats[currentChatId]) {
+        // Ensure we're not adding duplicate empty messages
+        const lastMessage = chats[currentChatId].messages[chats[currentChatId].messages.length - 1];
+        if (!lastMessage || lastMessage.role !== 'assistant' || lastMessage.content !== '') {
+            chats[currentChatId].messages.push({
+                role: 'assistant',
+                content: '',
+                timestamp: Date.now()
+            });
+        }
+    }
     
     const messageDiv = document.createElement('div');
     messageDiv.className = `chat-bubble message-${sender} streaming-message`;
@@ -874,11 +886,13 @@ function completeStreamingMessage() {
     
     // Save assistant message to chat
     if (currentChatId && streamingState.currentText) {
-        chats[currentChatId].messages.push({
-            role: 'assistant',
-            content: streamingState.currentText,
-            timestamp: Date.now()
-        });
+        const lastMessageIndex = chats[currentChatId].messages.length - 1;
+        if (lastMessageIndex >= 0 && chats[currentChatId].messages[lastMessageIndex].role === 'assistant') {
+            chats[currentChatId].messages[lastMessageIndex].content = streamingState.currentText;
+            // Also update the timestamp for the message
+            chats[currentChatId].messages[lastMessageIndex].timestamp = Date.now();
+        }
+        // No need for an else block because createStreamingMessage already added a placeholder
         updateChat(currentChatId);
     }
     
@@ -1140,20 +1154,24 @@ async function sendToGeminiStreamingRequest(messages, attachments, apiKey, model
     
     try {
         while (true) {
-            const { done, value } = await reader.read();
+            const {
+                done,
+                value
+            } = await reader.read();
             if (done) {
                 break;
             }
-            buffer += decoder.decode(value, { stream: true });
-            
-            // Process buffer line by line
-            let boundary;
-            while ((boundary = buffer.indexOf('\n')) !== -1) {
-                const chunk = buffer.substring(0, boundary).trim();
-                buffer = buffer.substring(boundary + 1);
-                
-                if (chunk.startsWith('data:')) {
-                    const jsonStr = chunk.substring(5).trim();
+            buffer += decoder.decode(value, {
+                stream: true
+            });
+            // This is a simplified parser for Gemini's specific JSON stream format.
+            // It looks for JSON objects within ```json ... ``` blocks.
+            let firstBlock = buffer.indexOf('```json');
+            while (firstBlock !== -1) {
+                let lastBlock = buffer.indexOf('```', firstBlock + 7);
+                if (lastBlock !== -1) {
+                    const jsonStr = buffer.substring(firstBlock + 7, lastBlock).trim();
+                    buffer = buffer.substring(lastBlock + 3); // Consume the processed block
                     try {
                         const data = JSON.parse(jsonStr);
                         if (data.candidates && data.candidates[0].content && data.candidates[0].content.parts) {
@@ -1164,6 +1182,9 @@ async function sendToGeminiStreamingRequest(messages, attachments, apiKey, model
                     } catch (e) {
                         console.debug('Skipping invalid JSON chunk:', jsonStr);
                     }
+                    firstBlock = buffer.indexOf('```json'); // Look for the next block
+                } else {
+                    break; // Incomplete block, wait for more data
                 }
             }
         }
