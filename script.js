@@ -9,6 +9,7 @@ let settings = {
     openrouterApiKeys: [],
     customProviders: [], // قائمة المزودين المخصصين مع مفاتيح API متعددة لكل مزود
     customModels: [], // النماذج المخصصة الجديدة
+    messageFontSize: 18, // Default font size in pixels
     customPrompt: '',
     apiKeyRetryStrategy: 'sequential'
 };
@@ -87,9 +88,11 @@ let streamingState = {
 document.addEventListener('DOMContentLoaded', function() {
     initializeDarkMode();
     loadData();
+    applyFontSize(settings.messageFontSize); // Apply saved font size on startup
     updateCustomProviders(); // تحديث المزودين المخصصين
     updateSendButton();
     initializeEventListeners();
+    initializeSortable(); // Initialize drag and drop
     displayChatHistory();
     updateProviderUI();
 
@@ -122,6 +125,7 @@ function initializeEventListeners() {
     const messageInput = document.getElementById('messageInput');
     const temperatureSlider = document.getElementById('temperatureSlider');
     const providerSelect = document.getElementById('providerSelect');
+    const fontSizeSlider = document.getElementById('fontSizeSlider');
 
     if (messageInput) {
         messageInput.addEventListener('input', function() {
@@ -145,11 +149,31 @@ function initializeEventListeners() {
         });
     }
 
+    if (fontSizeSlider) {
+        fontSizeSlider.addEventListener('input', function() {
+            const size = parseInt(this.value, 10);
+            applyFontSize(size);
+        });
+    }
+
     if (providerSelect) {
         providerSelect.addEventListener('change', function() {
             updateProviderUI();
             updateModelOptions();
         });
+    }
+}
+
+function applyFontSize(size) {
+    if (typeof size !== 'number' || size < 12 || size > 24) {
+        size = 18; // Fallback to default
+    }
+    document.documentElement.style.setProperty('--message-font-size', `${size}px`);
+
+    // Also update the display value in settings if the modal is open
+    const fontSizeValue = document.getElementById('fontSizeValue');
+    if (fontSizeValue) {
+        fontSizeValue.textContent = `${size}px`;
     }
 }
 
@@ -854,8 +878,15 @@ function completeStreamingMessage() {
             timestamp: Date.now()
         });
         
+        // Update the 'updatedAt' timestamp and order to move to top
+        chats[currentChatId].updatedAt = Date.now();
+        chats[currentChatId].order = -Date.now();
+
         // Save data to localStorage
         saveData();
+
+        // After saving, refresh the chat history to show the new order
+        displayChatHistory();
     }
     
     // Reset streaming state
@@ -941,9 +972,14 @@ async function sendMessage() {
         
         // Add user message to chat
         chats[currentChatId].messages.push(userMessage);
+        chats[currentChatId].updatedAt = Date.now();
+        chats[currentChatId].order = -Date.now(); // Move chat to the top
         
         // Display user message with file cards
         displayUserMessage(userMessage);
+
+        // Refresh history to show this chat on top
+        displayChatHistory();
         
         // Scroll to show new message
         setTimeout(() => scrollToBottom(), 100);
@@ -1183,15 +1219,8 @@ async function sendToGeminiStreamingRequest_DISABLED(messages, attachments, apiK
         reader.releaseLock();
     }
     
-    // Complete the streaming
+    // Complete the streaming, which will handle saving the message
     appendToStreamingMessage('', true);
-    
-    // Add assistant message to conversation
-    chats[currentChatId].messages.push({
-        role: 'assistant',
-        content: fullResponse,
-        timestamp: Date.now()
-    });
 }
 
 async function sendToOpenRouterSimple(messages, attachments) {
@@ -1296,15 +1325,8 @@ async function sendToOpenRouterSimple(messages, attachments) {
         reader.releaseLock();
     }
     
-    // Complete the streaming
+    // Complete the streaming, which will handle saving the message
     appendToStreamingMessage('', true);
-    
-    // Add assistant message to conversation
-    chats[currentChatId].messages.push({
-        role: 'assistant',
-        content: fullResponse,
-        timestamp: Date.now()
-    });
 }
 
 async function sendToCustomProviderSimple(messages, attachments, providerId) {
@@ -1333,13 +1355,6 @@ async function sendToCustomProviderSimple(messages, attachments, providerId) {
     }
     
     appendToStreamingMessage('', true);
-    
-    // Add assistant message to conversation
-    chats[currentChatId].messages.push({
-        role: 'assistant',
-        content: text,
-        timestamp: Date.now()
-    });
 }
 
 // Rest of the existing functions (chat management, UI functions, etc.)
@@ -1383,7 +1398,8 @@ async function startNewChat() {
         title: 'محادثة جديدة',
         messages: [],
         createdAt: Date.now(),
-        updatedAt: Date.now()
+        updatedAt: Date.now(),
+        order: -Date.now() // Negative timestamp to appear at the top
     };
     
     document.getElementById('welcomeScreen').classList.remove('hidden');
@@ -1394,11 +1410,40 @@ async function startNewChat() {
     saveData();
 }
 
+function initializeSortable() {
+    const chatHistoryEl = document.getElementById('chatHistory');
+    if (chatHistoryEl) {
+        new Sortable(chatHistoryEl, {
+            animation: 150,
+            ghostClass: 'sortable-ghost',
+            chosenClass: 'sortable-chosen',
+            onEnd: function (evt) {
+                const items = evt.from.children;
+                const newOrderIds = Array.from(items).map(item => item.dataset.chatId);
+
+                // Re-assign 'order' property based on new DOM order
+                newOrderIds.forEach((chatId, index) => {
+                    if (chats[chatId]) {
+                        chats[chatId].order = index;
+                    }
+                });
+
+                // The default sorting by `updatedAt` is now disabled.
+                // To make the moved chat "stick" to the top, we could
+                // optionally change its `updatedAt` as well, but for now
+                // we will rely purely on the `order` property.
+                saveData();
+            }
+        });
+    }
+}
+
 function displayChatHistory() {
     const chatHistory = document.getElementById('chatHistory');
     chatHistory.innerHTML = '';
     
-    const sortedChats = Object.values(chats).sort((a, b) => b.updatedAt - a.updatedAt);
+    // Sort by 'order' ascending. Negative timestamps (recent) come before positive (manual).
+    const sortedChats = Object.values(chats).sort((a, b) => (a.order ?? -a.createdAt) - (b.order ?? -b.createdAt));
     
     if (sortedChats.length === 0) {
         chatHistory.innerHTML = `
@@ -1413,24 +1458,31 @@ function displayChatHistory() {
     
     sortedChats.forEach(chat => {
         const chatItem = document.createElement('div');
-        chatItem.className = `p-3 rounded-lg cursor-pointer transition-colors ${chat.id === currentChatId ? 'bg-zeus-accent text-white' : 'hover:bg-white/10 text-gray-300'}`;
+        chatItem.dataset.chatId = chat.id; // Add data-id for SortableJS
+        chatItem.className = `p-3 rounded-lg cursor-pointer transition-colors flex items-center ${chat.id === currentChatId ? 'bg-zeus-accent text-white' : 'hover:bg-white/10 text-gray-300'}`;
         
         const lastMessage = chat.messages[chat.messages.length - 1];
         const preview = lastMessage ? (lastMessage.content.substring(0, 50) + (lastMessage.content.length > 50 ? '...' : '')) : 'محادثة فارغة';
         
         chatItem.innerHTML = `
-            <div class="flex items-center justify-between">
-                <div class="flex-1 min-w-0">
+            <div class="flex items-center justify-between w-full">
+                <div class="flex-1 min-w-0" id="chat-title-container-${chat.id}">
                     <h4 class="font-medium truncate">${chat.title}</h4>
                     <p class="text-sm opacity-70 truncate">${preview}</p>
                 </div>
-                <button onclick="deleteChat('${chat.id}')" class="p-1 rounded hover:bg-red-500/20 text-red-400 hover:text-red-300 ml-2">
-                    <i class="fas fa-trash text-xs"></i>
-                </button>
+                <div class="flex items-center flex-shrink-0 ml-2">
+                    <button onclick="editChatTitle('${chat.id}', event)" class="p-1 rounded hover:bg-white/20 text-gray-300 hover:text-white" title="تعديل الاسم">
+                        <i class="fas fa-pencil-alt text-xs"></i>
+                    </button>
+                    <button onclick="deleteChat('${chat.id}', event)" class="p-1 rounded hover:bg-red-500/20 text-red-400 hover:text-red-300" title="حذف المحادثة">
+                        <i class="fas fa-trash text-xs"></i>
+                    </button>
+                </div>
             </div>
         `;
         
         chatItem.onclick = (e) => {
+            // Do not switch chat if an action button (edit, delete) is clicked
             if (e.target.closest('button')) return;
             switchToChat(chat.id);
         };
@@ -1451,7 +1503,8 @@ function switchToChat(chatId) {
     closeSidebar();
 }
 
-function deleteChat(chatId) {
+function deleteChat(chatId, event) {
+    if (event) event.stopPropagation();
     if (confirm('هل أنت متأكد من حذف هذه المحادثة؟')) {
         delete chats[chatId];
         
@@ -1464,6 +1517,64 @@ function deleteChat(chatId) {
         displayChatHistory();
         saveData();
     }
+}
+
+function editChatTitle(chatId, event) {
+    if (event) event.stopPropagation();
+    const titleContainer = document.getElementById(`chat-title-container-${chatId}`);
+    const chat = chats[chatId];
+    if (!titleContainer || !chat) return;
+
+    // Avoid creating multiple inputs
+    if (titleContainer.querySelector('input')) return;
+
+    const originalTitle = chat.title;
+    const titleElement = titleContainer.querySelector('h4');
+    const previewElement = titleContainer.querySelector('p');
+
+    // Create and configure the input element
+    const inputElement = document.createElement('input');
+    inputElement.type = 'text';
+    inputElement.value = originalTitle;
+    inputElement.className = 'w-full bg-gray-700/80 border-b border-zeus-accent text-white focus:outline-none p-1 rounded';
+
+    // Hide title and preview, show input
+    titleElement.style.display = 'none';
+    previewElement.style.display = 'none';
+    titleContainer.prepend(inputElement);
+    inputElement.focus();
+    inputElement.select();
+
+    const saveOrCancel = () => {
+        const newTitle = inputElement.value.trim();
+
+        // Remove event listeners to prevent multiple calls
+        inputElement.removeEventListener('blur', saveOrCancel);
+        inputElement.removeEventListener('keydown', handleKeydown);
+
+        if (newTitle && newTitle !== originalTitle) {
+            chats[chatId].title = newTitle;
+            chats[chatId].updatedAt = Date.now();
+            chats[chatId].order = -Date.now(); // Move chat to the top
+            saveData();
+        }
+
+        // Always redraw the history to remove the input field and show the updated (or original) title
+        displayChatHistory();
+    };
+
+    const handleKeydown = (e) => {
+        if (e.key === 'Enter') {
+            saveOrCancel();
+        } else if (e.key === 'Escape') {
+            inputElement.value = originalTitle; // Revert to original title
+            saveOrCancel(); // Exit edit mode
+        }
+    };
+
+    // Event listeners for saving or canceling
+    inputElement.addEventListener('blur', saveOrCancel);
+    inputElement.addEventListener('keydown', handleKeydown);
 }
 
 function displayMessages() {
@@ -1628,9 +1739,15 @@ function loadSettingsUI() {
     document.getElementById('providerSelect').value = settings.provider;
     
     // Load temperature
-    document.getElementById('temperatureSlider').value = settings.temperature;
+    const temperatureSlider = document.getElementById('temperatureSlider');
+    temperatureSlider.value = settings.temperature;
     document.getElementById('temperatureValue').textContent = settings.temperature;
     
+    // Load font size
+    const fontSizeSlider = document.getElementById('fontSizeSlider');
+    fontSizeSlider.value = settings.messageFontSize;
+    document.getElementById('fontSizeValue').textContent = `${settings.messageFontSize}px`;
+
     // Load custom prompt
     document.getElementById('customPromptInput').value = settings.customPrompt;
     
@@ -1650,6 +1767,7 @@ function saveSettings() {
     settings.provider = document.getElementById('providerSelect').value;
     settings.model = document.getElementById('modelSelect').value;
     settings.temperature = parseFloat(document.getElementById('temperatureSlider').value);
+    settings.messageFontSize = parseInt(document.getElementById('fontSizeSlider').value, 10);
     settings.customPrompt = document.getElementById('customPromptInput').value;
     settings.apiKeyRetryStrategy = document.getElementById('apiKeyRetryStrategySelect').value;
     
@@ -1885,6 +2003,19 @@ function loadData() {
         
         if (savedChats) {
             chats = JSON.parse(savedChats);
+            // Migration for chats that don't have the 'order' property
+            let needsSave = false;
+            Object.values(chats).forEach(chat => {
+                if (typeof chat.order === 'undefined' || chat.order > 0) {
+                    // Use negative createdAt for old chats to sort them by time, newest first.
+                    // Also resets any old positive-value orders from previous dev versions.
+                    chat.order = -(chat.createdAt || Date.now());
+                    needsSave = true;
+                }
+            });
+            if (needsSave) {
+                saveData(); // Save the migrated data
+            }
         }
         
         if (savedSettings) {

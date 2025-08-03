@@ -12,6 +12,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/xml.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
     <script>
         tailwind.config = {
             theme: {
@@ -173,6 +174,17 @@
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">درجة الحرارة</label>
                         <input type="range" id="temperatureSlider" min="0" max="1" step="0.1" value="0.7" class="w-full accent-zeus-accent">
                         <span id="temperatureValue" class="text-sm text-gray-600 dark:text-gray-400">0.7</span>
+                    </div>
+
+                    <!-- Font Size Section -->
+                    <div class="settings-section">
+                        <label for="fontSizeSlider" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">حجم خط الرسائل</label>
+                        <div class="flex items-center space-x-4 space-x-reverse">
+                            <span class="text-sm text-gray-500 dark:text-gray-400">صغير</span>
+                            <input type="range" id="fontSizeSlider" min="12" max="24" step="1" class="w-full accent-zeus-accent">
+                            <span class="text-sm text-gray-500 dark:text-gray-400">كبير</span>
+                        </div>
+                        <span id="fontSizeValue" class="block text-center text-sm text-gray-600 dark:text-gray-400 mt-1">18px</span>
                     </div>
                 </div>
             </div>

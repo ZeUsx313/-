@@ -2,6 +2,10 @@
 @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700&display=swap');
 
 /* Body & Background Styles */
+:root {
+    --message-font-size: 1.125rem; /* Default: 18px */
+}
+
 body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Tajawal", "Cairo", sans-serif;
     background: #000000; /* Full black background */
@@ -40,7 +44,7 @@ body {
     animation: slideUp 0.3s ease-out;
     position: relative;
     padding: 1rem;
-    font-size: 1.375rem; /* Increased font size for chat bubbles (22px) */
+    font-size: var(--message-font-size); /* Use CSS variable */
     font-weight: 400; /* Consistent font weight */
     line-height: 1.5; /* Consistent line height */
     width: fit-content; /* فقاعات تلتف حول النص */
@@ -391,6 +395,17 @@ pre code .hljs-title {
 /* Sidebar & Transitions */
 .sidebar-transition {
     transition: transform 0.3s ease-in-out;
+}
+
+/* Styles for SortableJS */
+.sortable-ghost {
+    opacity: 0.4;
+    background-color: rgba(255, 255, 255, 0.1);
+    border: 1px dashed #10a37f;
+}
+
+.sortable-chosen {
+    cursor: grabbing;
 }
 
 /* Animations (from your Tailwind config) */
