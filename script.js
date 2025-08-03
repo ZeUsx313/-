@@ -870,39 +870,26 @@ function appendToStreamingMessage(text, isComplete = false) {
 
 function completeStreamingMessage() {
     if (!streamingState.isStreaming) return;
-    
     const messageElement = document.getElementById(`message-${streamingState.currentMessageId}`);
     if (messageElement) {
-        // Remove streaming indicator
         const indicator = messageElement.querySelector('.streaming-indicator');
         if (indicator) indicator.remove();
-        
-        // Remove streaming class
         messageElement.classList.remove('streaming-message');
-        
-        // Add message actions
         addMessageActions(messageElement, streamingState.currentText);
     }
-    
-    // Save assistant message to chat
-    if (currentChatId && streamingState.currentText) {
+    if (currentChatId && chats[currentChatId]) {
         const lastMessageIndex = chats[currentChatId].messages.length - 1;
         if (lastMessageIndex >= 0 && chats[currentChatId].messages[lastMessageIndex].role === 'assistant') {
             chats[currentChatId].messages[lastMessageIndex].content = streamingState.currentText;
-            // Also update the timestamp for the message
             chats[currentChatId].messages[lastMessageIndex].timestamp = Date.now();
         }
-        // No need for an else block because createStreamingMessage already added a placeholder
         updateChat(currentChatId);
     }
-    
-    // Reset streaming state
     streamingState.isStreaming = false;
     streamingState.currentMessageId = null;
     streamingState.streamingElement = null;
     streamingState.currentText = '';
     streamingState.streamController = null;
-    
     scrollToBottom();
 }
 
@@ -1083,28 +1070,30 @@ async function sendToGeminiSimple(messages, attachments) {
 }
 
 async function sendToGeminiStreamingRequest(messages, attachments, apiKey, model) {
-    
-    // Prepare conversation history
     const conversation = [];
-    
-    // Add custom prompt if exists
     if (settings.customPrompt.trim()) {
         conversation.push({
             role: 'user',
-            parts: [{ text: settings.customPrompt }]
+            parts: [{
+                text: settings.customPrompt
+            }]
         });
         conversation.push({
             role: 'model',
-            parts: [{ text: 'مفهوم، سأتبع هذه التعليمات في جميع ردودي.' }]
+            parts: [{
+                text: 'مفهوم، سأتبع هذه التعليمات في جميع ردودي.'
+            }]
         });
     }
-    
-    // Convert messages to Gemini format
-    messages.forEach(msg => {
+
+    const filteredMessages = messages.filter((msg, index) => {
+        const isLastMessage = index === messages.length - 1;
+        return !(isLastMessage && msg.role === 'assistant' && msg.content === '');
+    });
+
+    filteredMessages.forEach(msg => {
         if (msg.role === 'user') {
             let content = msg.content;
-            
-            // Add file contents to message if any
             if (attachments && attachments.length > 0) {
                 const fileContents = attachments
                     .filter(file => file.content)
@@ -1112,19 +1101,22 @@ async function sendToGeminiStreamingRequest(messages, attachments, apiKey, model
                     .join('');
                 content += fileContents;
             }
-            
             conversation.push({
                 role: 'user',
-                parts: [{ text: content }]
+                parts: [{
+                    text: content
+                }]
             });
         } else if (msg.role === 'assistant') {
             conversation.push({
                 role: 'model',
-                parts: [{ text: msg.content }]
+                parts: [{
+                    text: msg.content
+                }]
             });
         }
     });
-    
+
     const requestBody = {
         contents: conversation,
         generationConfig: {
@@ -1132,7 +1124,7 @@ async function sendToGeminiStreamingRequest(messages, attachments, apiKey, model
             maxOutputTokens: 4096,
         }
     };
-    
+
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?key=${apiKey}`, {
         method: 'POST',
         headers: {
@@ -1140,18 +1132,18 @@ async function sendToGeminiStreamingRequest(messages, attachments, apiKey, model
         },
         body: JSON.stringify(requestBody)
     });
-    
+
     if (!response.ok) {
         const errorText = await response.text();
         console.error('Gemini API Error:', response.status, errorText);
         throw new Error(`Gemini API error: ${response.status} - ${errorText}`);
     }
-    
+
     const reader = response.body.getReader();
-    let fullResponse = '';
     const decoder = new TextDecoder();
     let buffer = '';
-    
+    let fullResponse = '';
+
     try {
         while (true) {
             const {
@@ -1164,35 +1156,25 @@ async function sendToGeminiStreamingRequest(messages, attachments, apiKey, model
             buffer += decoder.decode(value, {
                 stream: true
             });
-            // Gemini's streaming format is not standard SSE, it's chunks of JSON.
-            // We need to find the full JSON objects in the buffer.
-            let firstBlock = buffer.indexOf('```json');
-            while (firstBlock !== -1) {
-                let lastBlock = buffer.indexOf('```', firstBlock + 7);
-                if (lastBlock !== -1) {
-                    const jsonStr = buffer.substring(firstBlock + 7, lastBlock).trim();
-                    buffer = buffer.substring(lastBlock + 3); // Consume the processed block
-                    try {
-                        const data = JSON.parse(jsonStr);
-                        if (data.candidates && data.candidates[0].content && data.candidates[0].content.parts) {
-                            const text = data.candidates[0].content.parts[0].text || '';
-                            fullResponse += text;
-                            appendToStreamingMessage(text);
-                        }
-                    } catch (e) {
-                        console.debug('Skipping invalid JSON chunk:', jsonStr);
+            let jsonStart, jsonEnd;
+            while ((jsonStart = buffer.indexOf('{')) !== -1 && (jsonEnd = buffer.indexOf('}', jsonStart)) !== -1) {
+                const jsonStr = buffer.substring(jsonStart, jsonEnd + 1);
+                buffer = buffer.substring(jsonEnd + 1);
+                try {
+                    const data = JSON.parse(jsonStr);
+                    if (data.candidates && data.candidates[0].content && data.candidates[0].content.parts) {
+                        const text = data.candidates[0].content.parts[0].text || '';
+                        fullResponse += text;
+                        appendToStreamingMessage(text);
                     }
-                    firstBlock = buffer.indexOf('```json'); // Look for the next block
-                } else {
-                    break; // Incomplete block, wait for more data
+                } catch (e) {
+                    console.debug('Skipping incomplete JSON chunk:', jsonStr);
                 }
             }
         }
     } finally {
         reader.releaseLock();
     }
-    
-    // Complete the streaming
     appendToStreamingMessage('', true);
 }
 
@@ -1201,27 +1183,22 @@ async function sendToOpenRouterSimple(messages, attachments) {
     if (apiKeys.length === 0) {
         throw new Error('لا توجد مفاتيح OpenRouter API نشطة');
     }
-    
     const apiKey = apiKeys[0];
     const model = settings.model;
-    
-    // Prepare messages for OpenRouter
     const formattedMessages = [];
-    
-    // Add custom prompt if exists
     if (settings.customPrompt.trim()) {
         formattedMessages.push({
             role: 'system',
             content: settings.customPrompt
         });
     }
-    
-    // Convert messages
-    messages.forEach(msg => {
+    const filteredMessages = messages.filter((msg, index) => {
+        const isLastMessage = index === messages.length - 1;
+        return !(isLastMessage && msg.role === 'assistant' && msg.content === '');
+    });
+    filteredMessages.forEach(msg => {
         if (msg.role === 'user') {
             let content = msg.content;
-            
-            // Add file contents if any
             if (attachments && attachments.length > 0) {
                 const fileContents = attachments
                     .filter(file => file.content)
@@ -1229,7 +1206,6 @@ async function sendToOpenRouterSimple(messages, attachments) {
                     .join('');
                 content += fileContents;
             }
-            
             formattedMessages.push({
                 role: 'user',
                 content: content
@@ -1241,7 +1217,6 @@ async function sendToOpenRouterSimple(messages, attachments) {
             });
         }
     });
-    
     const requestBody = {
         model: model,
         messages: formattedMessages,
@@ -1249,7 +1224,6 @@ async function sendToOpenRouterSimple(messages, attachments) {
         stream: true,
         max_tokens: 4096
     };
-    
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
         headers: {
@@ -1260,27 +1234,24 @@ async function sendToOpenRouterSimple(messages, attachments) {
         },
         body: JSON.stringify(requestBody)
     });
-    
     if (!response.ok) {
         throw new Error(`OpenRouter API error: ${response.status}`);
     }
-    
     const reader = response.body.getReader();
     let fullResponse = '';
-    
     try {
         while (true) {
-            const { done, value } = await reader.read();
+            const {
+                done,
+                value
+            } = await reader.read();
             if (done) break;
-            
             const chunk = new TextDecoder().decode(value);
             const lines = chunk.split('\n');
-            
             for (const line of lines) {
                 if (line.startsWith('data: ')) {
                     const data = line.slice(6);
                     if (data === '[DONE]') continue;
-                    
                     try {
                         const parsed = JSON.parse(data);
                         if (parsed.choices && parsed.choices[0] && parsed.choices[0].delta && parsed.choices[0].delta.content) {
@@ -1288,25 +1259,14 @@ async function sendToOpenRouterSimple(messages, attachments) {
                             fullResponse += text;
                             appendToStreamingMessage(text);
                         }
-                    } catch (e) {
-                        // Ignore parsing errors
-                    }
+                    } catch (e) {}
                 }
             }
         }
     } finally {
         reader.releaseLock();
     }
-    
-    // Complete the streaming
     appendToStreamingMessage('', true);
-    
-    // Add assistant message to conversation
-    chats[currentChatId].messages.push({
-        role: 'assistant',
-        content: fullResponse,
-        timestamp: Date.now()
-    });
 }
 
 async function sendToCustomProviderSimple(messages, attachments, providerId) {
