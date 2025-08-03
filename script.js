@@ -870,26 +870,59 @@ function appendToStreamingMessage(text, isComplete = false) {
 
 function completeStreamingMessage() {
     if (!streamingState.isStreaming) return;
+
     const messageElement = document.getElementById(`message-${streamingState.currentMessageId}`);
     if (messageElement) {
         const indicator = messageElement.querySelector('.streaming-indicator');
         if (indicator) indicator.remove();
         messageElement.classList.remove('streaming-message');
+
+        // Final render to clean up any artifacts
+        const finalRenderedContent = marked.parse(streamingState.currentText);
+        streamingState.streamingElement.innerHTML = finalRenderedContent;
+
+        // Re-apply highlighting and add headers
+        streamingState.streamingElement.querySelectorAll('pre code').forEach(block => {
+            hljs.highlightElement(block);
+            addCodeHeader(block.parentElement);
+        });
+
         addMessageActions(messageElement, streamingState.currentText);
     }
+
     if (currentChatId && chats[currentChatId]) {
         const lastMessageIndex = chats[currentChatId].messages.length - 1;
-        if (lastMessageIndex >= 0 && chats[currentChatId].messages[lastMessageIndex].role === 'assistant') {
-            chats[currentChatId].messages[lastMessageIndex].content = streamingState.currentText;
-            chats[currentChatId].messages[lastMessageIndex].timestamp = Date.now();
+
+        // Find the assistant message placeholder and update it.
+        // This is more robust than just assuming it's the last one.
+        const messageToUpdate = chats[currentChatId].messages.find(
+            (msg, index) => index === lastMessageIndex && msg.role === 'assistant' && msg.content === ''
+        );
+
+        if (messageToUpdate) {
+            messageToUpdate.content = streamingState.currentText;
+            messageToUpdate.timestamp = Date.now();
+        } else {
+            // This case should ideally not happen if createStreamingMessage works correctly
+            console.warn("Could not find the streaming message placeholder to update in the chat history.");
+            // As a fallback, we can push a new message, but it might lead to duplicates.
+            // chats[currentChatId].messages.push({
+            //     role: 'assistant',
+            //     content: streamingState.currentText,
+            //     timestamp: Date.now()
+            // });
         }
-        updateChat(currentChatId);
+
+        updateChat(currentChatId); // This also saves the data
     }
+
+    // Reset streaming state
     streamingState.isStreaming = false;
     streamingState.currentMessageId = null;
     streamingState.streamingElement = null;
     streamingState.currentText = '';
     streamingState.streamController = null;
+
     scrollToBottom();
 }
 
@@ -1074,47 +1107,37 @@ async function sendToGeminiStreamingRequest(messages, attachments, apiKey, model
     if (settings.customPrompt.trim()) {
         conversation.push({
             role: 'user',
-            parts: [{
-                text: settings.customPrompt
-            }]
+            parts: [{ text: settings.customPrompt }]
         });
         conversation.push({
             role: 'model',
-            parts: [{
-                text: 'مفهوم، سأتبع هذه التعليمات في جميع ردودي.'
-            }]
+            parts: [{ text: 'مفهوم، سأتبع هذه التعليمات في جميع ردودي.' }]
         });
     }
 
+    // KILLER BUG FIX: Filter out the last empty assistant message before sending
     const filteredMessages = messages.filter((msg, index) => {
         const isLastMessage = index === messages.length - 1;
+        // The condition to filter is: it's the last message, it's from the assistant, and its content is empty.
         return !(isLastMessage && msg.role === 'assistant' && msg.content === '');
     });
 
     filteredMessages.forEach(msg => {
-        if (msg.role === 'user') {
-            let content = msg.content;
-            if (attachments && attachments.length > 0) {
-                const fileContents = attachments
-                    .filter(file => file.content)
-                    .map(file => `\n\n--- محتوى الملف: ${file.name} ---\n${file.content}\n--- نهاية الملف ---`)
-                    .join('');
-                content += fileContents;
-            }
-            conversation.push({
-                role: 'user',
-                parts: [{
-                    text: content
-                }]
-            });
-        } else if (msg.role === 'assistant') {
-            conversation.push({
-                role: 'model',
-                parts: [{
-                    text: msg.content
-                }]
-            });
+        let role = msg.role === 'assistant' ? 'model' : 'user';
+        let content = msg.content;
+
+        if (msg.role === 'user' && attachments && attachments.length > 0) {
+            const fileContents = attachments
+                .filter(file => file.content)
+                .map(file => `\n\n--- محتوى الملف: ${file.name} ---\n${file.content}\n--- نهاية الملف ---`)
+                .join('');
+            content += fileContents;
         }
+
+        conversation.push({
+            role: role,
+            parts: [{ text: content }]
+        });
     });
 
     const requestBody = {
@@ -1127,9 +1150,7 @@ async function sendToGeminiStreamingRequest(messages, attachments, apiKey, model
 
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?key=${apiKey}`, {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requestBody)
     });
 
@@ -1142,39 +1163,51 @@ async function sendToGeminiStreamingRequest(messages, attachments, apiKey, model
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
     let buffer = '';
-    let fullResponse = '';
 
     try {
         while (true) {
-            const {
-                done,
-                value
-            } = await reader.read();
+            const { done, value } = await reader.read();
             if (done) {
+                // If there's any remaining data in the buffer, process it.
+                if (buffer.trim()) {
+                    try {
+                        const data = JSON.parse(buffer);
+                        if (data.candidates && data.candidates[0].content && data.candidates[0].content.parts) {
+                            const text = data.candidates[0].content.parts[0].text || '';
+                            appendToStreamingMessage(text);
+                        }
+                    } catch (e) {
+                        console.warn('Final JSON parse error (ignoring):', e);
+                    }
+                }
                 break;
             }
-            buffer += decoder.decode(value, {
-                stream: true
-            });
-            let jsonStart, jsonEnd;
-            while ((jsonStart = buffer.indexOf('{')) !== -1 && (jsonEnd = buffer.indexOf('}', jsonStart)) !== -1) {
-                const jsonStr = buffer.substring(jsonStart, jsonEnd + 1);
-                buffer = buffer.substring(jsonEnd + 1);
-                try {
-                    const data = JSON.parse(jsonStr);
-                    if (data.candidates && data.candidates[0].content && data.candidates[0].content.parts) {
-                        const text = data.candidates[0].content.parts[0].text || '';
-                        fullResponse += text;
-                        appendToStreamingMessage(text);
+            buffer += decoder.decode(value, { stream: true });
+
+            // Process buffer line by line for JSON objects
+            let boundary;
+            while ((boundary = buffer.indexOf('\n')) !== -1) {
+                const line = buffer.substring(0, boundary).trim();
+                buffer = buffer.substring(boundary + 1);
+
+                if (line.startsWith('{') && line.endsWith('}')) {
+                    try {
+                        const data = JSON.parse(line);
+                        if (data.candidates && data.candidates[0].content && data.candidates[0].content.parts) {
+                            const text = data.candidates[0].content.parts[0].text || '';
+                            appendToStreamingMessage(text);
+                        }
+                    } catch (e) {
+                        console.debug('Skipping non-JSON or incomplete line:', line);
                     }
-                } catch (e) {
-                    console.debug('Skipping incomplete JSON chunk:', jsonStr);
                 }
             }
         }
     } finally {
         reader.releaseLock();
     }
+
+    // Finalize the message
     appendToStreamingMessage('', true);
 }
 
@@ -1183,40 +1216,32 @@ async function sendToOpenRouterSimple(messages, attachments) {
     if (apiKeys.length === 0) {
         throw new Error('لا توجد مفاتيح OpenRouter API نشطة');
     }
-    const apiKey = apiKeys[0];
+    const apiKey = apiKeys[0]; // Using the first active key
     const model = settings.model;
+
     const formattedMessages = [];
     if (settings.customPrompt.trim()) {
-        formattedMessages.push({
-            role: 'system',
-            content: settings.customPrompt
-        });
+        formattedMessages.push({ role: 'system', content: settings.customPrompt });
     }
+
+    // KILLER BUG FIX: The same logic from Gemini must be applied here.
     const filteredMessages = messages.filter((msg, index) => {
         const isLastMessage = index === messages.length - 1;
         return !(isLastMessage && msg.role === 'assistant' && msg.content === '');
     });
+
     filteredMessages.forEach(msg => {
-        if (msg.role === 'user') {
-            let content = msg.content;
-            if (attachments && attachments.length > 0) {
-                const fileContents = attachments
-                    .filter(file => file.content)
-                    .map(file => `\n\n--- محتوى الملف: ${file.name} ---\n${file.content}\n--- نهاية الملف ---`)
-                    .join('');
-                content += fileContents;
-            }
-            formattedMessages.push({
-                role: 'user',
-                content: content
-            });
-        } else if (msg.role === 'assistant') {
-            formattedMessages.push({
-                role: 'assistant',
-                content: msg.content
-            });
+        let content = msg.content;
+        if (msg.role === 'user' && attachments && attachments.length > 0) {
+            const fileContents = attachments
+                .filter(file => file.content)
+                .map(file => `\n\n--- محتوى الملف: ${file.name} ---\n${file.content}\n--- نهاية الملف ---`)
+                .join('');
+            content += fileContents;
         }
+        formattedMessages.push({ role: msg.role, content: content });
     });
+
     const requestBody = {
         model: model,
         messages: formattedMessages,
@@ -1224,48 +1249,54 @@ async function sendToOpenRouterSimple(messages, attachments) {
         stream: true,
         max_tokens: 4096
     };
+
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
         headers: {
             'Authorization': `Bearer ${apiKey}`,
             'Content-Type': 'application/json',
-            'HTTP-Referer': window.location.origin,
-            'X-Title': 'Zeus Chat'
+            'HTTP-Referer': window.location.origin, // Required by OpenRouter
+            'X-Title': 'Zeus Chat' // Optional but good practice
         },
         body: JSON.stringify(requestBody)
     });
+
     if (!response.ok) {
-        throw new Error(`OpenRouter API error: ${response.status}`);
+        const errorText = await response.text();
+        console.error('OpenRouter API Error:', response.status, errorText);
+        throw new Error(`OpenRouter API error: ${response.status} - ${errorText}`);
     }
+
     const reader = response.body.getReader();
-    let fullResponse = '';
+    const decoder = new TextDecoder();
     try {
         while (true) {
-            const {
-                done,
-                value
-            } = await reader.read();
+            const { done, value } = await reader.read();
             if (done) break;
-            const chunk = new TextDecoder().decode(value);
+
+            const chunk = decoder.decode(value);
             const lines = chunk.split('\n');
+
             for (const line of lines) {
                 if (line.startsWith('data: ')) {
                     const data = line.slice(6);
-                    if (data === '[DONE]') continue;
+                    if (data.trim() === '[DONE]') continue;
                     try {
                         const parsed = JSON.parse(data);
                         if (parsed.choices && parsed.choices[0] && parsed.choices[0].delta && parsed.choices[0].delta.content) {
                             const text = parsed.choices[0].delta.content;
-                            fullResponse += text;
                             appendToStreamingMessage(text);
                         }
-                    } catch (e) {}
+                    } catch (e) {
+                        console.debug('Skipping incomplete SSE chunk:', data);
+                    }
                 }
             }
         }
     } finally {
         reader.releaseLock();
     }
+
     appendToStreamingMessage('', true);
 }
 
