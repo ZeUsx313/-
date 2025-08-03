@@ -3,70 +3,77 @@ import { appendToStreamingMessage, completeStreamingMessage } from './ui.js';
 
 // --- Internal API Functions ---
 
-async function sendToGeminiNonStreaming(messages, attachments, apiKey, model) {
-    const conversation = [];
-    if (settings.customPrompt.trim()) {
-        conversation.push({ role: 'user', parts: [{ text: settings.customPrompt }] });
-        conversation.push({ role: 'model', parts: [{ text: 'مفهوم، سأتبع هذه التعليمات في جميع ردودي.' }] });
-    }
-
-    messages.forEach(msg => {
-        if (msg.role === 'user') {
-            let content = msg.content;
-            if (attachments && attachments.length > 0) {
-                const fileContents = attachments
-                    .filter(file => file.content)
-                    .map(file => `\n\n--- محتوى الملف: ${file.name} ---\n${file.content}\n--- نهاية الملف ---`)
-                    .join('');
-                content += fileContents;
+function sendToGeminiNonStreaming(messages, attachments, apiKey, model) {
+    return new Promise(async (resolve, reject) => {
+        try {
+            const conversation = [];
+            if (settings.customPrompt.trim()) {
+                conversation.push({ role: 'user', parts: [{ text: settings.customPrompt }] });
+                conversation.push({ role: 'model', parts: [{ text: 'مفهوم، سأتبع هذه التعليمات في جميع ردودي.' }] });
             }
-            conversation.push({ role: 'user', parts: [{ text: content }] });
-        } else if (msg.role === 'assistant') {
-            conversation.push({ role: 'model', parts: [{ text: msg.content }] });
+
+            messages.forEach(msg => {
+                if (msg.role === 'user') {
+                    let content = msg.content;
+                    if (attachments && attachments.length > 0) {
+                        const fileContents = attachments
+                            .filter(file => file.content)
+                            .map(file => `\n\n--- محتوى الملف: ${file.name} ---\n${file.content}\n--- نهاية الملف ---`)
+                            .join('');
+                        content += fileContents;
+                    }
+                    conversation.push({ role: 'user', parts: [{ text: content }] });
+                } else if (msg.role === 'assistant') {
+                    conversation.push({ role: 'model', parts: [{ text: msg.content }] });
+                }
+            });
+
+            const requestBody = {
+                contents: conversation,
+                generationConfig: {
+                    temperature: settings.temperature,
+                    maxOutputTokens: 4096,
+                }
+            };
+
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(requestBody)
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('Gemini API Error:', response.status, errorText);
+                throw new Error(`Gemini API error: ${response.status} - ${errorText}`);
+            }
+
+            const data = await response.json();
+            if (!data.candidates || !data.candidates[0] || !data.candidates[0].content || !data.candidates[0].content.parts) {
+                throw new Error('Invalid response format from Gemini API');
+            }
+
+            const responseText = data.candidates[0].content.parts.map(part => part.text).join('');
+
+            let currentIndex = 0;
+            const streamDelay = 10;
+
+            const streamInterval = setInterval(() => {
+                if (currentIndex < responseText.length) {
+                    const chunk = responseText.slice(currentIndex, currentIndex + 5);
+                    appendToStreamingMessage(chunk);
+                    currentIndex += 5;
+                } else {
+                    clearInterval(streamInterval);
+                    completeStreamingMessage(responseText);
+                    resolve(responseText); // Resolve the promise with the full text
+                }
+            }, streamDelay);
+
+        } catch (error) {
+            reject(error);
         }
     });
-
-    const requestBody = {
-        contents: conversation,
-        generationConfig: {
-            temperature: settings.temperature,
-            maxOutputTokens: 4096,
-        }
-    };
-
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestBody)
-    });
-
-    if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Gemini API Error:', response.status, errorText);
-        throw new Error(`Gemini API error: ${response.status} - ${errorText}`);
-    }
-
-    const data = await response.json();
-    if (!data.candidates || !data.candidates[0] || !data.candidates[0].content || !data.candidates[0].content.parts) {
-        throw new Error('Invalid response format from Gemini API');
-    }
-
-    const responseText = data.candidates[0].content.parts.map(part => part.text).join('');
-
-    // Simulate streaming for visual effect
-    let currentIndex = 0;
-    const streamDelay = 10;
-
-    const streamInterval = setInterval(() => {
-        if (currentIndex < responseText.length) {
-            const chunk = responseText.slice(currentIndex, currentIndex + 5);
-            appendToStreamingMessage(chunk);
-            currentIndex += 5;
-        } else {
-            clearInterval(streamInterval);
-            completeStreamingMessage(responseText);
-        }
-    }, streamDelay);
 }
 
 async function sendToGeminiSimple(messages, attachments) {
@@ -163,6 +170,7 @@ async function sendToOpenRouterSimple(messages, attachments) {
     }
 
     completeStreamingMessage(fullResponse);
+    return fullResponse;
 }
 
 async function sendToCustomProvider(messages, attachments, providerId) {
@@ -230,6 +238,7 @@ async function sendToCustomProviderSimple(messages, attachments, providerId) {
     }
 
     completeStreamingMessage(responseText);
+    return responseText;
 }
 
 // --- Main Exported API Function ---
@@ -239,14 +248,103 @@ export async function sendToAIWithStreaming(messages, attachments) {
 
     try {
         if (provider === 'gemini') {
-            await sendToGeminiSimple(messages, attachments);
+            return await sendToGeminiSimple(messages, attachments);
         } else if (provider === 'openrouter') {
-            await sendToOpenRouterSimple(messages, attachments);
+            return await sendToOpenRouterSimple(messages, attachments);
         } else if (provider.startsWith('custom_')) {
-            await sendToCustomProviderSimple(messages, attachments, provider);
+            return await sendToCustomProviderSimple(messages, attachments, provider);
         }
     } catch (error) {
         console.error('API error:', error);
         throw error;
     }
+}
+
+// This function is not currently used but is kept for future reference for a different streaming approach.
+async function sendToGeminiStreamingRequest_DISABLED(messages, attachments, apiKey, model) {
+
+    const conversation = [];
+    if (settings.customPrompt.trim()) {
+        conversation.push({ role: 'user', parts: [{ text: settings.customPrompt }] });
+        conversation.push({ role: 'model', parts: [{ text: 'مفهوم، سأتبع هذه التعليمات في جميع ردودي.' }] });
+    }
+
+    messages.forEach(msg => {
+        if (msg.role === 'user') {
+            let content = msg.content;
+            if (attachments && attachments.length > 0) {
+                const fileContents = attachments
+                    .filter(file => file.content)
+                    .map(file => `\n\n--- محتوى الملف: ${file.name} ---\n${file.content}\n--- نهاية الملف ---`)
+                    .join('');
+                content += fileContents;
+            }
+            conversation.push({ role: 'user', parts: [{ text: content }] });
+        } else if (msg.role === 'assistant') {
+            conversation.push({ role: 'model', parts: [{ text: msg.content }] });
+        }
+    });
+
+    const requestBody = {
+        contents: conversation,
+        generationConfig: {
+            temperature: settings.temperature,
+            maxOutputTokens: 4096,
+        }
+    };
+
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', },
+        body: JSON.stringify(requestBody)
+    });
+
+    if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Gemini API Error:', response.status, errorText);
+        throw new Error(`Gemini API error: ${response.status} - ${errorText}`);
+    }
+
+    const reader = response.body.getReader();
+    let fullResponse = '';
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    try {
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            buffer = lines.pop() || '';
+
+            for (const line of lines) {
+                const trimmedLine = line.trim();
+                if (trimmedLine && trimmedLine.length > 2) {
+                    try {
+                        let cleanLine = trimmedLine.replace(/,$/, '').replace(/^\[/, '').replace(/\]$/, '');
+                        if (!cleanLine || cleanLine === '{' || cleanLine === '}') continue;
+
+                        const data = JSON.parse(cleanLine);
+                        if (data.candidates && data.candidates[0]?.content?.parts) {
+                            for (const part of data.candidates[0].content.parts) {
+                                if (part.text) {
+                                    fullResponse += part.text;
+                                    appendToStreamingMessage(part.text);
+                                }
+                            }
+                        }
+                    } catch (e) {
+                        console.debug('Skipping invalid JSON chunk:', trimmedLine.substring(0, 50));
+                    }
+                }
+            }
+        }
+    } finally {
+        reader.releaseLock();
+    }
+
+    completeStreamingMessage(fullResponse);
+    return fullResponse;
 }

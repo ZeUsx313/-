@@ -132,7 +132,16 @@ async function sendMessage() {
 
         ui.createStreamingMessage();
 
-        await api.sendToAIWithStreaming([...state.chats[state.currentChatId].messages], attachments);
+        const responseText = await api.sendToAIWithStreaming([...state.chats[state.currentChatId].messages], attachments);
+
+        if (responseText) {
+            state.chats[state.currentChatId].messages.push({
+                role: 'assistant',
+                content: responseText,
+                timestamp: Date.now()
+            });
+            saveData();
+        }
 
     } catch (error) {
         console.error('Error sending message:', error);
@@ -162,7 +171,10 @@ function initializeEventListeners() {
     document.getElementById('openSettingsButton').addEventListener('click', settingsManager.openSettings);
     document.getElementById('closeSettingsButton').addEventListener('click', settingsManager.closeSettings);
     document.getElementById('cancelSettingsButton').addEventListener('click', settingsManager.closeSettings);
-    document.getElementById('saveSettingsButton').addEventListener('click', settingsManager.saveSettings);
+    document.getElementById('saveSettingsButton').addEventListener('click', () => {
+        settingsManager.saveSettings();
+        saveData();
+    });
     document.getElementById('fileInput').addEventListener('change', (e) => fileManager.handleFileSelection(e.target));
     document.getElementById('clearFileButton').addEventListener('click', fileManager.clearFileInput);
     document.getElementById('manageCustomProvidersButton').addEventListener('click', settingsManager.openCustomProvidersManager);
@@ -258,20 +270,55 @@ function handleSettingsEvents(e) {
 
     const button = target.closest('[data-action]');
     const el = button || target;
+    let stateModified = false;
 
     // API Key actions
-    if (action === 'remove-key') settingsManager.removeApiKey(el.dataset.provider, parseInt(el.dataset.index));
-    if (action === 'toggle-key-visibility') settingsManager.toggleApiKeyVisibility(el.dataset.provider, parseInt(el.dataset.index), button);
-    if (action === 'update-key') settingsManager.updateApiKey(el.dataset.provider, parseInt(el.dataset.index), el.value);
+    if (action === 'remove-key') {
+        settingsManager.removeApiKey(el.dataset.provider, parseInt(el.dataset.index));
+        stateModified = true;
+    }
+    if (action === 'toggle-key-visibility') {
+        settingsManager.toggleApiKeyVisibility(el.dataset.provider, parseInt(el.dataset.index), button);
+        // No state change, just UI
+    }
+    if (action === 'update-key') {
+        settingsManager.updateApiKey(el.dataset.provider, parseInt(el.dataset.index), el.value);
+        stateModified = true;
+    }
 
     // Custom Provider actions
-    if (action === 'remove-provider') settingsManager.removeCustomProvider(parseInt(el.dataset.index));
-    if (action === 'update-provider-name') settingsManager.updateCustomProviderField(parseInt(el.dataset.index), 'name', el.value);
-    if (action === 'update-provider-url') settingsManager.updateCustomProviderField(parseInt(el.dataset.index), 'baseUrl', el.value);
-    if (action === 'add-provider-model') settingsManager.addCustomProviderModel(parseInt(el.dataset.index));
-    if (action === 'remove-provider-model') settingsManager.removeCustomProviderModel(parseInt(el.dataset.pIndex), parseInt(el.dataset.mIndex));
-    if (action === 'update-provider-model-id') settingsManager.updateCustomProviderModelField(parseInt(el.dataset.pIndex), parseInt(el.dataset.mIndex), 'id', el.value);
-    if (action === 'update-provider-model-name') settingsManager.updateCustomProviderModelField(parseInt(el.dataset.pIndex), parseInt(el.dataset.mIndex), 'name', el.value);
+    if (action === 'remove-provider') {
+        settingsManager.removeCustomProvider(parseInt(el.dataset.index));
+        stateModified = true;
+    }
+    if (action === 'update-provider-name') {
+        settingsManager.updateCustomProviderField(parseInt(el.dataset.index), 'name', el.value);
+        stateModified = true;
+    }
+    if (action === 'update-provider-url') {
+        settingsManager.updateCustomProviderField(parseInt(el.dataset.index), 'baseUrl', el.value);
+        stateModified = true;
+    }
+    if (action === 'add-provider-model') {
+        settingsManager.addCustomProviderModel(parseInt(el.dataset.index));
+        stateModified = true;
+    }
+    if (action === 'remove-provider-model') {
+        settingsManager.removeCustomProviderModel(parseInt(el.dataset.pIndex), parseInt(el.dataset.mIndex));
+        stateModified = true;
+    }
+    if (action === 'update-provider-model-id') {
+        settingsManager.updateCustomProviderModelField(parseInt(el.dataset.pIndex), parseInt(el.dataset.mIndex), 'id', el.value);
+        stateModified = true;
+    }
+    if (action === 'update-provider-model-name') {
+        settingsManager.updateCustomProviderModelField(parseInt(el.dataset.pIndex), parseInt(el.dataset.mIndex), 'name', el.value);
+        stateModified = true;
+    }
+
+    if (stateModified) {
+        saveData();
+    }
 }
 
 

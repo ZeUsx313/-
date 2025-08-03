@@ -1,6 +1,5 @@
 import { chats, currentChatId, streamingState, settings } from './state.js';
 import { createFileCard } from './fileHandler.js';
-import { saveData } from './main.js';
 
 // --- Helper Functions ---
 function escapeHtml(text) {
@@ -283,37 +282,32 @@ export function appendToStreamingMessage(text) {
 export function completeStreamingMessage(fullText) {
     if (!streamingState.isStreaming) return;
 
+    const messageElement = document.getElementById(`message-${streamingState.currentMessageId}`);
+
     if (streamingState.streamingElement) {
         const cursor = streamingState.streamingElement.querySelector('.streaming-cursor');
         if (cursor) cursor.remove();
 
+        // Final render of the full content
         const renderedContent = marked.parse(fullText);
         streamingState.streamingElement.innerHTML = renderedContent;
 
+        // Re-apply syntax highlighting and code headers
         streamingState.streamingElement.querySelectorAll('pre code').forEach(block => {
             hljs.highlightElement(block);
             addCodeHeader(block.parentElement);
         });
     }
 
-    const messageElement = document.getElementById(`message-${streamingState.currentMessageId}`);
     if (messageElement) {
         const indicator = messageElement.querySelector('.streaming-indicator');
         if (indicator) indicator.remove();
         messageElement.classList.remove('streaming-message');
+        // Add action buttons (copy, regenerate)
         addMessageActions(messageElement, fullText);
     }
 
-    if (currentChatId && fullText) {
-        chats[currentChatId].messages.push({
-            role: 'assistant',
-            content: fullText,
-            timestamp: Date.now()
-        });
-        saveData();
-    }
-
-    // Reset streaming state
+    // Reset streaming state, ready for the next message
     streamingState.isStreaming = false;
     streamingState.currentMessageId = null;
     streamingState.streamingElement = null;

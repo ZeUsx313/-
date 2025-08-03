@@ -1,6 +1,5 @@
 import { settings, providers, setSettings, updateProviders } from './state.js';
 import { showNotification } from './ui.js';
-import { saveData } from './main.js';
 
 // --- Main Settings Modal ---
 
@@ -35,7 +34,7 @@ export function saveSettings() {
         apiKeyRetryStrategy: document.getElementById('apiKeyRetryStrategySelect').value,
     };
     setSettings(newSettings);
-    saveData();
+    // The responsibility of saving is now in main.js
     closeSettings();
     showNotification('تم حفظ الإعدادات بنجاح', 'success');
 }
