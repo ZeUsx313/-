@@ -1164,12 +1164,14 @@ async function sendToGeminiStreamingRequest(messages, attachments, apiKey, model
             buffer += decoder.decode(value, {
                 stream: true
             });
-            let firstBracket = buffer.indexOf('{');
-            while (firstBracket !== -1) {
-                let lastBracket = buffer.indexOf('}', firstBracket);
-                if (lastBracket !== -1) {
-                    const jsonStr = buffer.substring(firstBracket, lastBracket + 1);
-                    buffer = buffer.substring(lastBracket + 1);
+            // Gemini's streaming format is not standard SSE, it's chunks of JSON.
+            // We need to find the full JSON objects in the buffer.
+            let firstBlock = buffer.indexOf('```json');
+            while (firstBlock !== -1) {
+                let lastBlock = buffer.indexOf('```', firstBlock + 7);
+                if (lastBlock !== -1) {
+                    const jsonStr = buffer.substring(firstBlock + 7, lastBlock).trim();
+                    buffer = buffer.substring(lastBlock + 3); // Consume the processed block
                     try {
                         const data = JSON.parse(jsonStr);
                         if (data.candidates && data.candidates[0].content && data.candidates[0].content.parts) {
@@ -1178,11 +1180,11 @@ async function sendToGeminiStreamingRequest(messages, attachments, apiKey, model
                             appendToStreamingMessage(text);
                         }
                     } catch (e) {
-                        // Not a full JSON object yet, wait for more data
+                        console.debug('Skipping invalid JSON chunk:', jsonStr);
                     }
-                    firstBracket = buffer.indexOf('{');
+                    firstBlock = buffer.indexOf('```json'); // Look for the next block
                 } else {
-                    break; // Incomplete JSON object
+                    break; // Incomplete block, wait for more data
                 }
             }
         }
