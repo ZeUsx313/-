@@ -1055,7 +1055,7 @@ async function sendToGeminiSimple(messages, attachments) {
         
         try {
             console.log(`Trying Gemini API with key ${i + 1}...`);
-            await sendToGeminiNonStreaming(messages, attachments, apiKey, model);
+            await sendToGeminiStreamingRequest(messages, attachments, apiKey, model);
             return; // Success, exit function
         } catch (error) {
             console.error(`Gemini API failed with key ${i + 1}:`, error);
@@ -1068,7 +1068,7 @@ async function sendToGeminiSimple(messages, attachments) {
     }
 }
 
-async function sendToGeminiStreamingRequest_DISABLED(messages, attachments, apiKey, model) {
+async function sendToGeminiStreamingRequest(messages, attachments, apiKey, model) {
     
     // Prepare conversation history
     const conversation = [];
@@ -1141,67 +1141,30 @@ async function sendToGeminiStreamingRequest_DISABLED(messages, attachments, apiK
     try {
         while (true) {
             const { done, value } = await reader.read();
-            if (done) break;
-            
+            if (done) {
+                break;
+            }
             buffer += decoder.decode(value, { stream: true });
-            const lines = buffer.split('\n');
             
-            // Keep the last incomplete line in the buffer
-            buffer = lines.pop() || '';
-            
-            for (const line of lines) {
-                const trimmedLine = line.trim();
+            // Process buffer line by line
+            let boundary;
+            while ((boundary = buffer.indexOf('\n')) !== -1) {
+                const chunk = buffer.substring(0, boundary).trim();
+                buffer = buffer.substring(boundary + 1);
                 
-                if (trimmedLine && trimmedLine !== '[' && trimmedLine !== ']' && trimmedLine !== ',' && trimmedLine.length > 2) {
+                if (chunk.startsWith('data:')) {
+                    const jsonStr = chunk.substring(5).trim();
                     try {
-                        // Remove trailing commas and brackets
-                        let cleanLine = trimmedLine.replace(/,$/, '').replace(/^\[/, '').replace(/\]$/, '');
-                        
-                        // Skip empty or invalid JSON
-                        if (!cleanLine || cleanLine === '{' || cleanLine === '}') {
-                            continue;
-                        }
-                        
-                        // Parse the JSON directly (Gemini streaming format)
-                        const data = JSON.parse(cleanLine);
-                        if (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts) {
-                            const parts = data.candidates[0].content.parts;
-                            for (const part of parts) {
-                                if (part.text) {
-                                    fullResponse += part.text;
-                                    appendToStreamingMessage(part.text);
-                                }
-                            }
+                        const data = JSON.parse(jsonStr);
+                        if (data.candidates && data.candidates[0].content && data.candidates[0].content.parts) {
+                            const text = data.candidates[0].content.parts[0].text || '';
+                            fullResponse += text;
+                            appendToStreamingMessage(text);
                         }
                     } catch (e) {
-                        // Skip parsing errors silently unless it's a substantial chunk
-                        if (trimmedLine.length > 10) {
-                            console.debug('Skipping invalid JSON chunk:', trimmedLine.substring(0, 50));
-                        }
+                        console.debug('Skipping invalid JSON chunk:', jsonStr);
                     }
                 }
-            }
-        }
-        
-        // Process any remaining buffer
-        if (buffer.trim() && buffer.trim().length > 2) {
-            try {
-                let cleanBuffer = buffer.trim().replace(/,$/, '').replace(/^\[/, '').replace(/\]$/, '');
-                if (cleanBuffer && cleanBuffer !== '{' && cleanBuffer !== '}') {
-                    const data = JSON.parse(cleanBuffer);
-                    if (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts) {
-                        const parts = data.candidates[0].content.parts;
-                        for (const part of parts) {
-                            if (part.text) {
-                                fullResponse += part.text;
-                                appendToStreamingMessage(part.text);
-                            }
-                        }
-                    }
-                }
-            } catch (e) {
-                // Silently ignore final buffer parsing errors
-                console.debug('Could not parse final buffer:', buffer.substring(0, 50));
             }
         }
     } finally {
@@ -1210,13 +1173,6 @@ async function sendToGeminiStreamingRequest_DISABLED(messages, attachments, apiK
     
     // Complete the streaming
     appendToStreamingMessage('', true);
-    
-    // Add assistant message to conversation
-    chats[currentChatId].messages.push({
-        role: 'assistant',
-        content: fullResponse,
-        timestamp: Date.now()
-    });
 }
 
 async function sendToOpenRouterSimple(messages, attachments) {
@@ -2068,99 +2024,3 @@ async function sendToCustomProvider(messages, attachments, providerId) {
     return data.choices[0].message.content;
 }
 
-// Non-streaming fallback for Gemini
-async function sendToGeminiNonStreaming(messages, attachments, apiKey, model) {
-    
-    // Prepare conversation history
-    const conversation = [];
-    
-    // Add custom prompt if exists
-    if (settings.customPrompt.trim()) {
-        conversation.push({
-            role: 'user',
-            parts: [{ text: settings.customPrompt }]
-        });
-        conversation.push({
-            role: 'model',
-            parts: [{ text: 'مفهوم، سأتبع هذه التعليمات في جميع ردودي.' }]
-        });
-    }
-    
-    // Convert messages to Gemini format
-    messages.forEach(msg => {
-        if (msg.role === 'user') {
-            let content = msg.content;
-            
-            // Add file contents to message if any
-            if (attachments && attachments.length > 0) {
-                const fileContents = attachments
-                    .filter(file => file.content)
-                    .map(file => `\n\n--- محتوى الملف: ${file.name} ---\n${file.content}\n--- نهاية الملف ---`)
-                    .join('');
-                content += fileContents;
-            }
-            
-            conversation.push({
-                role: 'user',
-                parts: [{ text: content }]
-            });
-        } else if (msg.role === 'assistant') {
-            conversation.push({
-                role: 'model',
-                parts: [{ text: msg.content }]
-            });
-        }
-    });
-    
-    const requestBody = {
-        contents: conversation,
-        generationConfig: {
-            temperature: settings.temperature,
-            maxOutputTokens: 4096,
-        }
-    };
-    
-    console.log('Making Gemini API request to:', `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`);
-    console.log('Request body:', JSON.stringify(requestBody, null, 2));
-    
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestBody)
-    });
-    
-    console.log('API Response status:', response.status);
-    
-    if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Gemini API Error:', response.status, errorText);
-        throw new Error(`Gemini API error: ${response.status} - ${errorText}`);
-    }
-    
-    const data = await response.json();
-    
-    if (!data.candidates || !data.candidates[0] || !data.candidates[0].content || !data.candidates[0].content.parts) {
-        throw new Error('Invalid response format from Gemini API');
-    }
-    
-    const responseText = data.candidates[0].content.parts.map(part => part.text).join('');
-    
-    // Simulate streaming for visual effect
-    let currentIndex = 0;
-    const streamDelay = 20; // milliseconds between characters
-    
-    const streamInterval = setInterval(() => {
-        if (currentIndex < responseText.length) {
-            const chunk = responseText.slice(currentIndex, currentIndex + 3); // 3 characters at a time
-            appendToStreamingMessage(chunk);
-            currentIndex += 3;
-        } else {
-            clearInterval(streamInterval);
-            appendToStreamingMessage('', true); // Complete the streaming
-            
-            // Message will be saved by completeStreamingMessage function
-        }
-    }, streamDelay);
-}
