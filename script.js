@@ -5,6 +5,7 @@ let settings = {
     provider: 'gemini',
     model: 'gemini-1.5-flash',
     temperature: 0.7,
+    fontSize: 16, // حجم الخط الافتراضي
     geminiApiKeys: [],
     openrouterApiKeys: [],
     customProviders: [], // قائمة المزودين المخصصين مع مفاتيح API متعددة لكل مزود
@@ -87,6 +88,7 @@ let streamingState = {
 document.addEventListener('DOMContentLoaded', function() {
     initializeDarkMode();
     loadData();
+    applyFontSize(); // تطبيق حجم الخط عند التحميل
     updateCustomProviders(); // تحديث المزودين المخصصين
     updateSendButton();
     initializeEventListeners();
@@ -122,6 +124,7 @@ function initializeEventListeners() {
     const messageInput = document.getElementById('messageInput');
     const temperatureSlider = document.getElementById('temperatureSlider');
     const providerSelect = document.getElementById('providerSelect');
+    const fontSizeSlider = document.getElementById('fontSizeSlider');
 
     if (messageInput) {
         messageInput.addEventListener('input', function() {
@@ -142,6 +145,15 @@ function initializeEventListeners() {
     if (temperatureSlider) {
         temperatureSlider.addEventListener('input', function() {
             document.getElementById('temperatureValue').textContent = this.value;
+        });
+    }
+
+    if (fontSizeSlider) {
+        fontSizeSlider.addEventListener('input', function() {
+            const fontSize = this.value;
+            document.getElementById('fontSizeValue').textContent = `${fontSize}px`;
+            // Apply font size change in real-time for preview
+            document.documentElement.style.setProperty('--chat-font-size', `${fontSize}px`);
         });
     }
 
@@ -853,9 +865,11 @@ function completeStreamingMessage() {
             content: streamingState.currentText,
             timestamp: Date.now()
         });
+        chats[currentChatId].updatedAt = Date.now(); // تحديث وقت آخر رسالة
         
         // Save data to localStorage
         saveData();
+        displayChatHistory(); // تحديث قائمة المحادثات
     }
     
     // Reset streaming state
@@ -941,9 +955,11 @@ async function sendMessage() {
         
         // Add user message to chat
         chats[currentChatId].messages.push(userMessage);
+        chats[currentChatId].updatedAt = Date.now(); // تحديث وقت آخر رسالة
         
         // Display user message with file cards
         displayUserMessage(userMessage);
+        displayChatHistory(); // تحديث قائمة المحادثات لتعكس الترتيب الجديد
         
         // Scroll to show new message
         setTimeout(() => scrollToBottom(), 100);
@@ -1424,9 +1440,14 @@ function displayChatHistory() {
                     <h4 class="font-medium truncate">${chat.title}</h4>
                     <p class="text-sm opacity-70 truncate">${preview}</p>
                 </div>
-                <button onclick="deleteChat('${chat.id}')" class="p-1 rounded hover:bg-red-500/20 text-red-400 hover:text-red-300 ml-2">
-                    <i class="fas fa-trash text-xs"></i>
-                </button>
+                <div class="flex items-center">
+                    <button onclick="renameChat('${chat.id}', event)" class="p-1 rounded hover:bg-blue-500/20 text-blue-400 hover:text-blue-300 ml-2">
+                        <i class="fas fa-pen text-xs"></i>
+                    </button>
+                    <button onclick="deleteChat('${chat.id}')" class="p-1 rounded hover:bg-red-500/20 text-red-400 hover:text-red-300 ml-2">
+                        <i class="fas fa-trash text-xs"></i>
+                    </button>
+                </div>
             </div>
         `;
         
@@ -1449,6 +1470,26 @@ function switchToChat(chatId) {
     displayMessages();
     displayChatHistory();
     closeSidebar();
+}
+
+function renameChat(chatId, event) {
+    event.stopPropagation(); // منع تحديد المحادثة عند الضغط على الزر
+    const chat = chats[chatId];
+    if (!chat) return;
+
+    const newTitle = prompt('أدخل الاسم الجديد للمحادثة:', chat.title);
+
+    if (newTitle && newTitle.trim() !== '') {
+        chat.title = newTitle.trim();
+        chat.updatedAt = Date.now();
+        displayChatHistory();
+        saveData();
+        // تحديث العنوان في الهيدر إذا كانت هي المحادثة الحالية
+        if (currentChatId === chatId) {
+            // This part is a potential improvement, but let's stick to the main goal.
+            // For now, the title in the history list will update.
+        }
+    }
 }
 
 function deleteChat(chatId) {
@@ -1628,8 +1669,14 @@ function loadSettingsUI() {
     document.getElementById('providerSelect').value = settings.provider;
     
     // Load temperature
-    document.getElementById('temperatureSlider').value = settings.temperature;
+    const temperatureSlider = document.getElementById('temperatureSlider');
+    temperatureSlider.value = settings.temperature;
     document.getElementById('temperatureValue').textContent = settings.temperature;
+
+    // Load font size
+    const fontSizeSlider = document.getElementById('fontSizeSlider');
+    fontSizeSlider.value = settings.fontSize;
+    document.getElementById('fontSizeValue').textContent = `${settings.fontSize}px`;
     
     // Load custom prompt
     document.getElementById('customPromptInput').value = settings.customPrompt;
@@ -1650,9 +1697,11 @@ function saveSettings() {
     settings.provider = document.getElementById('providerSelect').value;
     settings.model = document.getElementById('modelSelect').value;
     settings.temperature = parseFloat(document.getElementById('temperatureSlider').value);
+    settings.fontSize = parseInt(document.getElementById('fontSizeSlider').value, 10);
     settings.customPrompt = document.getElementById('customPromptInput').value;
     settings.apiKeyRetryStrategy = document.getElementById('apiKeyRetryStrategySelect').value;
     
+    applyFontSize(); // تطبيق حجم الخط عند الحفظ
     saveData();
     closeSettings();
     showNotification('تم حفظ الإعدادات بنجاح', 'success');
@@ -1810,6 +1859,11 @@ function toggleOpenRouterApiKeyVisibility(index) {
 }
 
 // UI functions
+function applyFontSize() {
+    const fontSize = settings.fontSize || 16; // Fallback to 16px
+    document.documentElement.style.setProperty('--chat-font-size', `${fontSize}px`);
+}
+
 function openSidebar() {
     document.getElementById('sidebar').classList.remove('translate-x-full');
 }

@@ -40,7 +40,7 @@ body {
     animation: slideUp 0.3s ease-out;
     position: relative;
     padding: 1rem;
-    font-size: 1.375rem; /* Increased font size for chat bubbles (22px) */
+    font-size: var(--chat-font-size, 1.375rem); /* Default to 22px (22px) */
     font-weight: 400; /* Consistent font weight */
     line-height: 1.5; /* Consistent line height */
     width: fit-content; /* فقاعات تلتف حول النص */
