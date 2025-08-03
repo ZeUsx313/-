@@ -10,7 +10,8 @@ let settings = {
     customProviders: [], // قائمة المزودين المخصصين مع مفاتيح API متعددة لكل مزود
     customModels: [], // النماذج المخصصة الجديدة
     customPrompt: '',
-    apiKeyRetryStrategy: 'sequential'
+    apiKeyRetryStrategy: 'sequential',
+    fontSize: 18 // Default font size in pixels
 };
 
 // Provider configurations
@@ -151,6 +152,20 @@ function initializeEventListeners() {
             updateModelOptions();
         });
     }
+
+    const fontSizeSlider = document.getElementById('fontSizeSlider');
+    if (fontSizeSlider) {
+        fontSizeSlider.addEventListener('input', function() {
+            const size = this.value;
+            document.getElementById('fontSizeValue').textContent = `${size}px`;
+            updateFontSize(size);
+        });
+    }
+}
+
+// --- New Function ---
+function updateFontSize(size) {
+    document.documentElement.style.setProperty('--message-font-size', `${size}px`);
 }
 
 // Provider and model management
@@ -848,11 +863,14 @@ function completeStreamingMessage() {
     
     // Save assistant message to chat
     if (currentChatId && streamingState.currentText) {
+        const now = Date.now();
         chats[currentChatId].messages.push({
             role: 'assistant',
             content: streamingState.currentText,
-            timestamp: Date.now()
+            timestamp: now
         });
+        chats[currentChatId].updatedAt = now;
+        chats[currentChatId].order = now; // Bring chat to top on new message
         
         // Save data to localStorage
         saveData();
@@ -1378,12 +1396,14 @@ function updateSendButton() {
 async function startNewChat() {
     const chatId = Date.now().toString();
     currentChatId = chatId;
+    const now = Date.now();
     chats[chatId] = {
         id: chatId,
         title: 'محادثة جديدة',
         messages: [],
-        createdAt: Date.now(),
-        updatedAt: Date.now()
+        createdAt: now,
+        updatedAt: now,
+        order: now // Used for drag-and-drop reordering
     };
     
     document.getElementById('welcomeScreen').classList.remove('hidden');
@@ -1394,11 +1414,15 @@ async function startNewChat() {
     saveData();
 }
 
+// Drag and drop state
+let draggedChatId = null;
+
 function displayChatHistory() {
     const chatHistory = document.getElementById('chatHistory');
     chatHistory.innerHTML = '';
     
-    const sortedChats = Object.values(chats).sort((a, b) => b.updatedAt - a.updatedAt);
+    // Sort by the 'order' property, descending (higher order value = higher on the list)
+    const sortedChats = Object.values(chats).sort((a, b) => b.order - a.order);
     
     if (sortedChats.length === 0) {
         chatHistory.innerHTML = `
@@ -1415,18 +1439,27 @@ function displayChatHistory() {
         const chatItem = document.createElement('div');
         chatItem.className = `p-3 rounded-lg cursor-pointer transition-colors ${chat.id === currentChatId ? 'bg-zeus-accent text-white' : 'hover:bg-white/10 text-gray-300'}`;
         
+        // Make item draggable
+        chatItem.setAttribute('draggable', true);
+        chatItem.setAttribute('data-chat-id', chat.id);
+
         const lastMessage = chat.messages[chat.messages.length - 1];
         const preview = lastMessage ? (lastMessage.content.substring(0, 50) + (lastMessage.content.length > 50 ? '...' : '')) : 'محادثة فارغة';
         
         chatItem.innerHTML = `
             <div class="flex items-center justify-between">
-                <div class="flex-1 min-w-0">
-                    <h4 class="font-medium truncate">${chat.title}</h4>
-                    <p class="text-sm opacity-70 truncate">${preview}</p>
+                <div class="flex-1 min-w-0" id="chat-title-container-${chat.id}">
+                    <h4 class="font-medium truncate">${escapeHtml(chat.title)}</h4>
+                    <p class="text-sm opacity-70 truncate">${escapeHtml(preview)}</p>
                 </div>
-                <button onclick="deleteChat('${chat.id}')" class="p-1 rounded hover:bg-red-500/20 text-red-400 hover:text-red-300 ml-2">
-                    <i class="fas fa-trash text-xs"></i>
-                </button>
+                <div class="flex items-center ml-2 space-x-1 space-x-reverse">
+                    <button onclick="toggleEditChatTitle('${chat.id}', event)" class="p-1 rounded hover:bg-white/20 text-gray-300 hover:text-white transition-colors" title="تعديل الاسم">
+                        <i class="fas fa-pen text-xs"></i>
+                    </button>
+                    <button onclick="deleteChat('${chat.id}', event)" class="p-1 rounded hover:bg-red-500/20 text-red-400 hover:text-red-300 transition-colors" title="حذف المحادثة">
+                        <i class="fas fa-trash text-xs"></i>
+                    </button>
+                </div>
             </div>
         `;
         
@@ -1435,8 +1468,108 @@ function displayChatHistory() {
             switchToChat(chat.id);
         };
         
+        // Add drag and drop event listeners
+        chatItem.addEventListener('dragstart', handleDragStart);
+        chatItem.addEventListener('dragenter', handleDragEnter);
+        chatItem.addEventListener('dragover', handleDragOver);
+        chatItem.addEventListener('dragleave', handleDragLeave);
+        chatItem.addEventListener('drop', handleDrop);
+        chatItem.addEventListener('dragend', handleDragEnd);
+
         chatHistory.appendChild(chatItem);
     });
+}
+
+// --- Drag and Drop Handlers ---
+
+function handleDragStart(e) {
+    draggedChatId = this.getAttribute('data-chat-id');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', draggedChatId);
+
+    setTimeout(() => {
+        this.classList.add('dragging');
+    }, 0);
+}
+
+function handleDragEnter(e) {
+    e.preventDefault();
+    const dropTarget = this;
+    if (dropTarget.getAttribute('data-chat-id') !== draggedChatId) {
+        // Remove existing indicators before adding a new one
+        document.querySelectorAll('.drop-indicator').forEach(ind => ind.remove());
+
+        const indicator = document.createElement('div');
+        indicator.className = 'drop-indicator';
+
+        const rect = dropTarget.getBoundingClientRect();
+        const isAfter = e.clientY > rect.top + rect.height / 2;
+
+        if (isAfter) {
+            dropTarget.insertAdjacentElement('afterend', indicator);
+        } else {
+            dropTarget.insertAdjacentElement('beforebegin', indicator);
+        }
+    }
+}
+
+function handleDragOver(e) {
+    e.preventDefault(); // Necessary to allow dropping
+}
+
+function handleDragLeave(e) {
+    // This is to prevent the indicator from disappearing when moving between child elements
+    const chatHistory = document.getElementById('chatHistory');
+    if (!chatHistory.contains(e.relatedTarget)) {
+        document.querySelectorAll('.drop-indicator').forEach(ind => ind.remove());
+    }
+}
+
+function handleDrop(e) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const sourceChatId = e.dataTransfer.getData('text/plain');
+    const dropIndicator = document.querySelector('.drop-indicator');
+
+    if (!dropIndicator || !chats[sourceChatId]) {
+        if(dropIndicator) dropIndicator.remove();
+        return;
+    }
+
+    const nextSibling = dropIndicator.nextElementSibling;
+    const prevSibling = dropIndicator.previousElementSibling;
+
+    const orderBefore = nextSibling && nextSibling.hasAttribute('data-chat-id') ? chats[nextSibling.getAttribute('data-chat-id')].order : null;
+    const orderAfter = prevSibling && prevSibling.hasAttribute('data-chat-id') ? chats[prevSibling.getAttribute('data-chat-id')].order : null;
+
+    let newOrder;
+    if (orderBefore === null && orderAfter !== null) {
+        // Dropped at the end of the list
+        newOrder = orderAfter - 1000;
+    } else if (orderBefore !== null && orderAfter === null) {
+        // Dropped at the beginning of the list
+        newOrder = orderBefore + 1000;
+    } else if (orderBefore !== null && orderAfter !== null) {
+        // Dropped between two items
+        newOrder = (orderBefore + orderAfter) / 2;
+    } else {
+        // List has only one item or is empty, no change needed
+        dropIndicator.remove();
+        return;
+    }
+
+    chats[sourceChatId].order = newOrder;
+    saveData();
+
+    // The dragend handler will remove the indicator and dragging class
+    // Re-render to show the final correct order
+    displayChatHistory();
+}
+
+function handleDragEnd(e) {
+    document.querySelectorAll('.dragging').forEach(el => el.classList.remove('dragging'));
+    document.querySelectorAll('.drop-indicator').forEach(ind => ind.remove());
 }
 
 function switchToChat(chatId) {
@@ -1451,7 +1584,8 @@ function switchToChat(chatId) {
     closeSidebar();
 }
 
-function deleteChat(chatId) {
+function deleteChat(chatId, event) {
+    if (event) event.stopPropagation();
     if (confirm('هل أنت متأكد من حذف هذه المحادثة؟')) {
         delete chats[chatId];
         
@@ -1464,6 +1598,67 @@ function deleteChat(chatId) {
         displayChatHistory();
         saveData();
     }
+}
+
+function toggleEditChatTitle(chatId, event) {
+    event.stopPropagation();
+    const titleContainer = document.getElementById(`chat-title-container-${chatId}`);
+    const chatItem = titleContainer.closest('.p-3');
+    if (!titleContainer || !chatItem) return;
+
+    const currentTitle = chats[chatId].title;
+
+    // Preserve the preview text
+    const previewText = chatItem.querySelector('p').textContent;
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = currentTitle;
+    input.className = 'w-full bg-transparent text-white border-b border-white/50 focus:outline-none text-base font-medium';
+    input.style.direction = 'rtl';
+    input.onclick = (e) => e.stopPropagation();
+
+    const saveAndUpdate = () => {
+        const newTitle = input.value.trim();
+        if (newTitle && newTitle !== currentTitle) {
+            updateChatTitle(chatId, newTitle);
+        } else {
+            displayChatHistory(); // Restore if title is empty or unchanged
+        }
+    };
+
+    input.onblur = saveAndUpdate;
+    input.onkeydown = (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            saveAndUpdate();
+        } else if (e.key === 'Escape') {
+            displayChatHistory();
+        }
+    };
+
+    titleContainer.innerHTML = '';
+    titleContainer.appendChild(input);
+
+    // Re-add the preview paragraph
+    const p = document.createElement('p');
+    p.className = 'text-sm opacity-70 truncate';
+    p.textContent = previewText;
+    titleContainer.appendChild(p);
+
+    input.focus();
+    input.select();
+}
+
+function updateChatTitle(chatId, newTitle) {
+    if (newTitle && newTitle.trim() !== '') {
+        const now = Date.now();
+        chats[chatId].title = newTitle.trim();
+        chats[chatId].updatedAt = now;
+        chats[chatId].order = now; // Bring to top on edit
+        saveData();
+    }
+    displayChatHistory();
 }
 
 function displayMessages() {
@@ -1641,6 +1836,10 @@ function loadSettingsUI() {
     renderGeminiApiKeys();
     renderOpenRouterApiKeys();
     
+    // Load font size
+    document.getElementById('fontSizeSlider').value = settings.fontSize;
+    document.getElementById('fontSizeValue').textContent = `${settings.fontSize}px`;
+
     updateProviderUI();
     updateModelOptions();
 }
@@ -1652,6 +1851,7 @@ function saveSettings() {
     settings.temperature = parseFloat(document.getElementById('temperatureSlider').value);
     settings.customPrompt = document.getElementById('customPromptInput').value;
     settings.apiKeyRetryStrategy = document.getElementById('apiKeyRetryStrategySelect').value;
+    settings.fontSize = parseInt(document.getElementById('fontSizeSlider').value, 10);
     
     saveData();
     closeSettings();
@@ -1885,11 +2085,22 @@ function loadData() {
         
         if (savedChats) {
             chats = JSON.parse(savedChats);
+            // Ensure all chats have an 'order' property for drag-and-drop
+            Object.values(chats).forEach(chat => {
+                if (chat.order === undefined) {
+                    // Use updatedAt for backward compatibility, ensuring newest are on top
+                    chat.order = chat.updatedAt;
+                }
+            });
         }
         
         if (savedSettings) {
             const loadedSettings = JSON.parse(savedSettings);
             settings = { ...settings, ...loadedSettings };
+            // Apply loaded font size on startup
+            if (settings.fontSize) {
+                updateFontSize(settings.fontSize);
+            }
         }
         
         if (savedCurrentChatId && chats[savedCurrentChatId]) {
