@@ -1022,19 +1022,20 @@ async function sendToGeminiSimple(messages, attachments) {
     if (apiKeys.length === 0) {
         throw new Error('لا توجد مفاتيح Gemini API نشطة');
     }
-    
+
     // Try each API key with fallback
     for (let i = 0; i < apiKeys.length; i++) {
         const apiKey = apiKeys[i];
         const model = settings.model;
-        
+
         try {
             console.log(`Trying Gemini API with key ${i + 1}...`);
-            await sendToGeminiNonStreaming(messages, attachments, apiKey, model);
+            // MODIFIED: Call the new streaming function
+            await sendToGeminiWithStreaming(messages, attachments, apiKey, model);
             return; // Success, exit function
         } catch (error) {
             console.error(`Gemini API failed with key ${i + 1}:`, error);
-            
+
             // If this is the last key, throw the error
             if (i === apiKeys.length - 1) {
                 throw error;
@@ -1043,155 +1044,80 @@ async function sendToGeminiSimple(messages, attachments) {
     }
 }
 
-async function sendToGeminiStreamingRequest_DISABLED(messages, attachments, apiKey, model) {
-    
+// New streaming function for Gemini, inspired by user suggestion
+async function sendToGeminiWithStreaming(messages, attachments, apiKey, model) {
     // Prepare conversation history
     const conversation = [];
-    
-    // Add custom prompt if exists
     if (settings.customPrompt.trim()) {
-        conversation.push({
-            role: 'user',
-            parts: [{ text: settings.customPrompt }]
-        });
-        conversation.push({
-            role: 'model',
-            parts: [{ text: 'مفهوم، سأتبع هذه التعليمات في جميع ردودي.' }]
-        });
+        conversation.push({ role: 'user', parts: [{ text: settings.customPrompt }] });
+        conversation.push({ role: 'model', parts: [{ text: 'مفهوم، سأتبع هذه التعليمات في جميع ردودي.' }] });
     }
-    
-    // Convert messages to Gemini format
     messages.forEach(msg => {
         if (msg.role === 'user') {
             let content = msg.content;
-            
-            // Add file contents to message if any
             if (attachments && attachments.length > 0) {
-                const fileContents = attachments
-                    .filter(file => file.content)
-                    .map(file => `\n\n--- محتوى الملف: ${file.name} ---\n${file.content}\n--- نهاية الملف ---`)
-                    .join('');
+                const fileContents = attachments.filter(f => f.content).map(f => `\n\n--- محتوى الملف: ${f.name} ---\n${f.content}\n--- نهاية الملف ---`).join('');
                 content += fileContents;
             }
-            
-            conversation.push({
-                role: 'user',
-                parts: [{ text: content }]
-            });
-        } else if (msg.role === 'assistant') {
-            conversation.push({
-                role: 'model',
-                parts: [{ text: msg.content }]
-            });
+            conversation.push({ role: 'user', parts: [{ text: content }] });
+        } else if (msg.role === 'assistant' && msg.content) {
+            conversation.push({ role: 'model', parts: [{ text: msg.content }] });
         }
     });
-    
-    const requestBody = {
-        contents: conversation,
-        generationConfig: {
-            temperature: settings.temperature,
-            maxOutputTokens: 4096,
-        }
-    };
-    
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?key=${apiKey}`, {
+
+    // Use generateContent with stream: true
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestBody)
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            contents: conversation,
+            generationConfig: {
+                temperature: settings.temperature,
+                maxOutputTokens: 4096
+            },
+            // The key change for streaming with this endpoint
+            stream: true
+        })
     });
-    
-    if (!response.ok) {
+
+    if (!response.ok || !response.body) {
         const errorText = await response.text();
         console.error('Gemini API Error:', response.status, errorText);
-        throw new Error(`Gemini API error: ${response.status} - ${errorText}`);
+        throw new Error(`فشل الاستجابة من Gemini: ${response.status} - ${errorText}`);
     }
-    
+
     const reader = response.body.getReader();
-    let fullResponse = '';
-    const decoder = new TextDecoder();
-    let buffer = '';
-    
+    const decoder = new TextDecoder('utf-8');
+
     try {
         while (true) {
             const { done, value } = await reader.read();
             if (done) break;
+
+            const chunk = decoder.decode(value, { stream: true });
             
-            buffer += decoder.decode(value, { stream: true });
-            const lines = buffer.split('\n');
-            
-            // Keep the last incomplete line in the buffer
-            buffer = lines.pop() || '';
-            
+            // This is the correct parsing for SSE-like stream from generateContent
+            const lines = chunk.split('\n').filter(line => line.trim().startsWith('data: '));
             for (const line of lines) {
-                const trimmedLine = line.trim();
-                
-                if (trimmedLine && trimmedLine !== '[' && trimmedLine !== ']' && trimmedLine !== ',' && trimmedLine.length > 2) {
-                    try {
-                        // Remove trailing commas and brackets
-                        let cleanLine = trimmedLine.replace(/,$/, '').replace(/^\[/, '').replace(/\]$/, '');
-                        
-                        // Skip empty or invalid JSON
-                        if (!cleanLine || cleanLine === '{' || cleanLine === '}') {
-                            continue;
-                        }
-                        
-                        // Parse the JSON directly (Gemini streaming format)
-                        const data = JSON.parse(cleanLine);
-                        if (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts) {
-                            const parts = data.candidates[0].content.parts;
-                            for (const part of parts) {
-                                if (part.text) {
-                                    fullResponse += part.text;
-                                    appendToStreamingMessage(part.text);
-                                }
-                            }
-                        }
-                    } catch (e) {
-                        // Skip parsing errors silently unless it's a substantial chunk
-                        if (trimmedLine.length > 10) {
-                            console.debug('Skipping invalid JSON chunk:', trimmedLine.substring(0, 50));
-                        }
+                const jsonString = line.replace('data: ', '');
+                try {
+                    const json = JSON.parse(jsonString);
+                    const text = json.candidates?.[0]?.content?.parts?.[0]?.text || '';
+                    if (text) {
+                        appendToStreamingMessage(text);
                     }
+                } catch (e) {
+                    console.warn('Could not parse JSON chunk from Gemini stream:', e);
+                    console.warn('Problematic JSON string:', jsonString);
                 }
-            }
-        }
-        
-        // Process any remaining buffer
-        if (buffer.trim() && buffer.trim().length > 2) {
-            try {
-                let cleanBuffer = buffer.trim().replace(/,$/, '').replace(/^\[/, '').replace(/\]$/, '');
-                if (cleanBuffer && cleanBuffer !== '{' && cleanBuffer !== '}') {
-                    const data = JSON.parse(cleanBuffer);
-                    if (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts) {
-                        const parts = data.candidates[0].content.parts;
-                        for (const part of parts) {
-                            if (part.text) {
-                                fullResponse += part.text;
-                                appendToStreamingMessage(part.text);
-                            }
-                        }
-                    }
-                }
-            } catch (e) {
-                // Silently ignore final buffer parsing errors
-                console.debug('Could not parse final buffer:', buffer.substring(0, 50));
             }
         }
     } finally {
         reader.releaseLock();
     }
-    
-    // Complete the streaming
+
+    // Finalize the message
     appendToStreamingMessage('', true);
-    
-    // Add assistant message to conversation
-    chats[currentChatId].messages.push({
-        role: 'assistant',
-        content: fullResponse,
-        timestamp: Date.now()
-    });
 }
 
 async function sendToOpenRouterSimple(messages, attachments) {
