@@ -60,11 +60,11 @@
         <div class="p-6 border-b border-white/20">
             <div class="flex items-center justify-between">
                 <h2 class="text-xl font-bold text-gray-800 dark:text-white">المحادثات</h2>
-                <button onclick="closeSidebar()" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 p-2 rounded-lg hover:bg-white/10 transition-colors">
+                <button id="closeSidebarButton" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 p-2 rounded-lg hover:bg-white/10 transition-colors">
                     <i class="fas fa-times text-xl"></i>
                 </button>
             </div>
-            <button onclick="startNewChat()" class="w-full mt-4 bg-zeus-accent hover:bg-zeus-accent-hover text-white px-4 py-2 rounded-lg transition-all duration-200 transform hover:scale-105">
+            <button id="newChatButton" class="w-full mt-4 bg-zeus-accent hover:bg-zeus-accent-hover text-white px-4 py-2 rounded-lg transition-all duration-200 transform hover:scale-105">
                 <i class="fas fa-plus ml-2"></i>محادثة جديدة
             </button>
         </div>
@@ -76,7 +76,7 @@
         <div class="settings-modal glass-effect p-6 rounded-xl shadow-2xl max-w-lg w-full mx-4 animate-fade-in">
             <div class="flex items-center justify-between mb-6">
                 <h3 class="text-xl font-bold text-gray-800 dark:text-white">الإعدادات</h3>
-                <button onclick="closeSettings()" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 p-2 rounded-lg hover:bg-white/10 transition-colors">
+                <button id="closeSettingsButton" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 p-2 rounded-lg hover:bg-white/10 transition-colors">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
@@ -85,7 +85,7 @@
                     <div class="settings-section">
                         <div class="flex items-center justify-between mb-2">
                             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">مزود الذكاء الاصطناعي</label>
-                            <button onclick="openCustomProvidersManager()" class="text-xs text-zeus-accent hover:text-zeus-accent-hover transition-colors">
+                            <button id="manageCustomProvidersButton" class="text-xs text-zeus-accent hover:text-zeus-accent-hover transition-colors">
                                 <i class="fas fa-cog ml-1"></i>إدارة المزودين المخصصين
                             </button>
                         </div>
@@ -103,7 +103,7 @@
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">مفاتيح Gemini API</label>
                         <div id="geminiApiKeysContainer" class="space-y-2 mb-2">
                             </div>
-                        <button onclick="addGeminiApiKeyField()" class="w-full px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">
+                        <button id="addGeminiKeyButton" class="w-full px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">
                             <i class="fas fa-plus ml-2"></i>أضف مفتاحًا جديدًا
                         </button>
                         <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">
@@ -115,7 +115,7 @@
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">مفاتيح OpenRouter API</label>
                         <div id="openrouterApiKeysContainer" class="space-y-2 mb-2">
                             </div>
-                        <button onclick="addOpenRouterApiKeyField()" class="w-full px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">
+                        <button id="addOpenRouterKeyButton" class="w-full px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">
                             <i class="fas fa-plus ml-2"></i>أضف مفتاحًا جديدًا
                         </button>
                         <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">
@@ -123,15 +123,12 @@
                         </p>
                     </div>
 
-                    <!-- قسم المزود المخصص القديم تم إزالته -->
-
-                    <!-- قسم مفاتيح API للمزودين المخصصين -->
                     <div class="settings-section hidden" id="customProviderApiKeysSection">
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2" id="customProviderApiKeysLabel">مفاتيح API للمزود المخصص</label>
                         <div id="customProviderApiKeysContainer" class="space-y-3">
                             <!-- سيتم ملء مفاتيح API هنا -->
                         </div>
-                        <button type="button" onclick="addCustomProviderApiKey()" class="mt-3 px-4 py-2 bg-zeus-accent hover:bg-zeus-accent-hover text-white rounded-lg transition-colors text-sm">
+                        <button type="button" id="addCustomProviderKeyButton" class="mt-3 px-4 py-2 bg-zeus-accent hover:bg-zeus-accent-hover text-white rounded-lg transition-colors text-sm">
                             <i class="fas fa-plus ml-2"></i>أضف مفتاحاً جديداً
                         </button>
                         <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">
@@ -161,7 +158,7 @@
                     <div class="settings-section">
                         <div class="flex items-center justify-between mb-2">
                             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">نموذج الذكاء الاصطناعي</label>
-                            <button onclick="openCustomModelsManager()" class="text-xs text-zeus-accent hover:text-zeus-accent-hover transition-colors">
+                            <button id="manageCustomModelsButton" class="text-xs text-zeus-accent hover:text-zeus-accent-hover transition-colors">
                                 <i class="fas fa-cog ml-1"></i>إدارة النماذج المخصصة
                             </button>
                         </div>
@@ -177,10 +174,10 @@
                 </div>
             </div>
             <div class="flex justify-end mt-6 space-x-3 space-x-reverse">
-                <button onclick="closeSettings()" class="px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-white rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500">
+                <button id="cancelSettingsButton" class="px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-white rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500">
                     إلغاء
                 </button>
-                <button onclick="saveSettings()" class="px-4 py-2 bg-zeus-accent hover:bg-zeus-accent-hover text-white rounded-lg">
+                <button id="saveSettingsButton" class="px-4 py-2 bg-zeus-accent hover:bg-zeus-accent-hover text-white rounded-lg">
                     حفظ
                 </button>
             </div>
@@ -192,13 +189,13 @@
         <div class="custom-models-modal glass-effect p-6 rounded-xl shadow-2xl max-w-4xl w-full mx-4 animate-fade-in">
             <div class="flex items-center justify-between mb-6">
                 <h3 class="text-xl font-bold text-gray-800 dark:text-white">إدارة النماذج المخصصة</h3>
-                <button onclick="closeCustomModelsManager()" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 p-2 rounded-lg hover:bg-white/10 transition-colors">
+                <button id="closeCustomModelsButton" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 p-2 rounded-lg hover:bg-white/10 transition-colors">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
             
             <div class="mb-6">
-                <button onclick="addCustomModel()" class="w-full btn-custom btn-primary">
+                <button id="addCustomModelButton" class="w-full btn-custom btn-primary">
                     <i class="fas fa-plus ml-2"></i>إضافة نموذج مخصص جديد
                 </button>
             </div>
@@ -208,7 +205,7 @@
             </div>
             
             <div class="flex justify-end mt-6 space-x-3 space-x-reverse">
-                <button onclick="closeCustomModelsManager()" class="btn-custom btn-secondary">
+                <button id="closeCustomModelsButtonBottom" class="btn-custom btn-secondary">
                     إغلاق
                 </button>
             </div>
@@ -220,13 +217,13 @@
         <div class="custom-models-modal glass-effect p-6 rounded-xl shadow-2xl max-w-4xl w-full mx-4 animate-fade-in">
             <div class="flex items-center justify-between mb-6">
                 <h3 class="text-xl font-bold text-gray-800 dark:text-white">إدارة المزودين المخصصين</h3>
-                <button onclick="closeCustomProvidersManager()" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 p-2 rounded-lg hover:bg-white/10 transition-colors">
+                <button id="closeCustomProvidersButton" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 p-2 rounded-lg hover:bg-white/10 transition-colors">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
             
             <div class="mb-6">
-                <button onclick="addCustomProvider()" class="w-full btn-custom btn-primary">
+                <button id="addCustomProviderButton" class="w-full btn-custom btn-primary">
                     <i class="fas fa-plus ml-2"></i>إضافة مزود مخصص جديد
                 </button>
             </div>
@@ -236,7 +233,7 @@
             </div>
             
             <div class="flex justify-end mt-6 space-x-3 space-x-reverse">
-                <button onclick="closeCustomProvidersManager()" class="btn-custom btn-secondary">
+                <button id="closeCustomProvidersButtonBottom" class="btn-custom btn-secondary">
                     إغلاق
                 </button>
             </div>
@@ -248,7 +245,7 @@
             <header class="flex-shrink-0 bg-black border-b border-gray-800 px-6 py-4">
                 <div class="flex items-center justify-between">
                     <div class="flex items-center space-x-4 space-x-reverse">
-                        <button onclick="openSidebar()" class="text-gray-400 hover:text-gray-200 p-2 rounded-lg hover:bg-gray-800 transition-colors">
+                        <button id="openSidebarButton" class="text-gray-400 hover:text-gray-200 p-2 rounded-lg hover:bg-gray-800 transition-colors">
                             <i class="fas fa-bars text-xl"></i>
                         </button>
                         <div class="flex items-center space-x-3 space-x-reverse">
@@ -260,10 +257,10 @@
                         </div>
                     </div>
                     <div class="flex items-center space-x-2 space-x-reverse">
-                        <button onclick="toggleDarkMode()" class="p-2 rounded-lg text-gray-400 hover:text-gray-200 hover:bg-gray-800 transition-colors" title="تبديل النمط">
+                        <button id="toggleDarkModeButton" class="p-2 rounded-lg text-gray-400 hover:text-gray-200 hover:bg-gray-800 transition-colors" title="تبديل النمط">
                             <i id="themeIcon" class="fas fa-moon text-lg"></i>
                         </button>
-                        <button onclick="openSettings()" class="p-2 rounded-lg text-gray-400 hover:text-gray-200 hover:bg-gray-800 transition-colors" title="الإعدادات">
+                        <button id="openSettingsButton" class="p-2 rounded-lg text-gray-400 hover:text-gray-200 hover:bg-gray-800 transition-colors" title="الإعدادات">
                             <i class="fas fa-cog text-lg"></i>
                         </button>
                     </div>
@@ -315,7 +312,7 @@
                                 <div class="bg-gray-800 rounded-lg p-4 border border-gray-700">
                                     <div class="flex items-center justify-between mb-2">
                                         <span class="text-sm font-medium text-gray-300">الملفات المرفقة:</span>
-                                        <button onclick="clearFileInput()" class="text-gray-400 hover:text-gray-200 text-sm">
+                                        <button id="clearFileButton" class="text-gray-400 hover:text-gray-200 text-sm">
                                             <i class="fas fa-times ml-1"></i>مسح الكل
                                         </button>
                                     </div>
@@ -336,12 +333,11 @@
                                     ></textarea>
                                     <label for="fileInput" class="absolute left-3 top-1/2 transform -translate-y-1/2 cursor-pointer text-gray-400 hover:text-gray-200 transition-colors">
                                         <i class="fas fa-paperclip text-lg"></i>
-                                        <input type="file" id="fileInput" multiple class="hidden" onchange="handleFileSelection(this)">
+                                        <input type="file" id="fileInput" multiple class="hidden">
                                     </label>
                                 </div>
                                 <button
                                     id="sendButton"
-                                    onclick="sendMessage()"
                                     disabled
                                     class="px-6 py-3 bg-zeus-accent text-white rounded-xl hover:bg-zeus-accent-hover disabled:bg-gray-600 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105 disabled:hover:scale-100"
                                 >
@@ -358,6 +354,6 @@
         </div>
     </div>
 
-    <script src="script.js"></script>
+    <script type="module" src="js/main.js"></script>
 </body>
 </html>
