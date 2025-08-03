@@ -956,6 +956,7 @@ async function sendMessage() {
         // Add user message to chat
         chats[currentChatId].messages.push(userMessage);
         chats[currentChatId].updatedAt = Date.now(); // تحديث وقت آخر رسالة
+        saveData(); // حفظ البيانات فوراً
         
         // Display user message with file cards
         displayUserMessage(userMessage);
