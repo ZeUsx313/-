@@ -1044,7 +1044,7 @@ async function sendToGeminiSimple(messages, attachments) {
     }
 }
 
-// New streaming function for Gemini, inspired by user suggestion
+// New streaming function for Gemini, corrected based on API error
 async function sendToGeminiWithStreaming(messages, attachments, apiKey, model) {
     // Prepare conversation history
     const conversation = [];
@@ -1065,8 +1065,8 @@ async function sendToGeminiWithStreaming(messages, attachments, apiKey, model) {
         }
     });
 
-    // Use generateContent with stream: true
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
+    // Use streamGenerateContent endpoint and correct body
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?key=${apiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1074,9 +1074,7 @@ async function sendToGeminiWithStreaming(messages, attachments, apiKey, model) {
             generationConfig: {
                 temperature: settings.temperature,
                 maxOutputTokens: 4096
-            },
-            // The key change for streaming with this endpoint
-            stream: true
+            }
         })
     });
 
@@ -1086,29 +1084,34 @@ async function sendToGeminiWithStreaming(messages, attachments, apiKey, model) {
         throw new Error(`فشل الاستجابة من Gemini: ${response.status} - ${errorText}`);
     }
 
+    // This parser is for the raw JSON stream from streamGenerateContent
     const reader = response.body.getReader();
-    const decoder = new TextDecoder('utf-8');
+    const decoder = new TextDecoder();
+    let buffer = '';
 
     try {
         while (true) {
             const { done, value } = await reader.read();
             if (done) break;
-
-            const chunk = decoder.decode(value, { stream: true });
             
-            // This is the correct parsing for SSE-like stream from generateContent
-            const lines = chunk.split('\n').filter(line => line.trim().startsWith('data: '));
+            buffer += decoder.decode(value, { stream: true });
+            // Process buffer line-by-line
+            const lines = buffer.split('\n');
+            buffer = lines.pop() || ''; // Keep incomplete line
+
             for (const line of lines) {
-                const jsonString = line.replace('data: ', '');
-                try {
-                    const json = JSON.parse(jsonString);
-                    const text = json.candidates?.[0]?.content?.parts?.[0]?.text || '';
-                    if (text) {
-                        appendToStreamingMessage(text);
+                const trimmedLine = line.trim().replace(/,$/, '').replace(/^\[|\]$/g, '').trim();
+                if (trimmedLine && trimmedLine.startsWith('{') && trimmedLine.endsWith('}')) {
+                    try {
+                        const json = JSON.parse(trimmedLine);
+                        const text = json.candidates?.[0]?.content?.parts?.[0]?.text || '';
+                        if (text) {
+                            appendToStreamingMessage(text);
+                        }
+                    } catch (e) {
+                        console.warn('Could not parse JSON chunk from Gemini stream:', e);
+                        console.warn('Problematic chunk:', trimmedLine);
                     }
-                } catch (e) {
-                    console.warn('Could not parse JSON chunk from Gemini stream:', e);
-                    console.warn('Problematic JSON string:', jsonString);
                 }
             }
         }
