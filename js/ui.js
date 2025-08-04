@@ -108,11 +108,11 @@ export function renderCustomProviderApiKeys(providerId) {
         keyDiv.innerHTML = `
             <div class="relative flex-1">
                 <input type="password" value="${apiKey.key}" 
-                    onchange="updateCustomProviderApiKeyValue('${providerId}', ${index}, this.value)"
+                    data-action="updateCustomProviderApiKeyValue" data-provider-id="${providerId}" data-index="${index}"
                     id="customProviderApiKeyInput-${providerId}-${index}"
                     class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white/80 dark:bg-gray-700/80 text-gray-900 dark:text-white text-base pl-10 backdrop-blur-sm"
                     placeholder="أدخل مفتاح API">
-                <button type="button" onclick="toggleCustomProviderApiKeyVisibility('${providerId}', ${index})" 
+                <button type="button" data-action="toggleCustomProviderApiKeyVisibility" data-provider-id="${providerId}" data-index="${index}"
                     class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
                     <i id="customProviderApiKeyToggleIcon-${providerId}-${index}" class="fas fa-eye"></i>
                 </button>
@@ -121,7 +121,7 @@ export function renderCustomProviderApiKeys(providerId) {
                 <span class="status-indicator ${apiKey.status === 'active' ? 'bg-green-500' : 'bg-red-500'} w-3 h-3 rounded-full"></span>
                 <span class="text-xs text-gray-500 dark:text-gray-400">${apiKey.status === 'active' ? 'نشط' : 'معطل'}</span>
             </div>
-            <button onclick="removeCustomProviderApiKey('${providerId}', ${index})" 
+            <button data-action="removeCustomProviderApiKey" data-provider-id="${providerId}" data-index="${index}"
                 class="p-2 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 transition-colors">
                 <i class="fas fa-trash text-sm"></i>
             </button>
@@ -209,25 +209,25 @@ export function renderCustomProviders() {
             <div class="flex items-start justify-between mb-3">
                 <div class="flex-1">
                     <input type="text" value="${provider.name}" 
-                        onchange="updateCustomProviderName(${index}, this.value)"
+                        data-action="updateCustomProviderName" data-index="${index}"
                         class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white/80 dark:bg-gray-700/80 text-gray-900 dark:text-white text-base backdrop-blur-sm"
                         placeholder="اسم المزود">
                 </div>
-                <button onclick="removeCustomProvider(${index})" 
+                <button data-action="removeCustomProvider" data-index="${index}"
                     class="p-2 ml-2 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 transition-colors">
                     <i class="fas fa-trash"></i>
                 </button>
             </div>
             <div class="mb-3">
                 <input type="text" value="${provider.baseUrl || ''}" 
-                    onchange="updateCustomProviderBaseUrl(${index}, this.value)"
+                    data-action="updateCustomProviderBaseUrl" data-index="${index}"
                     class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white/80 dark:bg-gray-700/80 text-gray-900 dark:text-white text-base backdrop-blur-sm"
                     placeholder="رابط API الأساسي">
             </div>
             <div class="space-y-2">
                 <div class="flex items-center justify-between">
                     <span class="text-sm font-medium text-gray-700 dark:text-gray-300">النماذج:</span>
-                    <button onclick="addCustomProviderModel(${index})" 
+                    <button data-action="addCustomProviderModel" data-index="${index}"
                         class="text-xs text-zeus-accent hover:text-zeus-accent-hover transition-colors">
                         <i class="fas fa-plus ml-1"></i>إضافة نموذج
                     </button>
@@ -236,14 +236,14 @@ export function renderCustomProviders() {
                     ${provider.models ? provider.models.map((model, modelIndex) => `
                         <div class="flex items-center space-x-2 space-x-reverse">
                             <input type="text" value="${model.id}" 
-                                onchange="updateCustomProviderModelId(${index}, ${modelIndex}, this.value)"
+                                data-action="updateCustomProviderModelId" data-provider-index="${index}" data-model-index="${modelIndex}"
                                 class="flex-1 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded bg-white/80 dark:bg-gray-700/80 text-gray-900 dark:text-white text-sm"
                                 placeholder="معرف النموذج">
                             <input type="text" value="${model.name}" 
-                                onchange="updateCustomProviderModelName(${index}, ${modelIndex}, this.value)"
+                                data-action="updateCustomProviderModelName" data-provider-index="${index}" data-model-index="${modelIndex}"
                                 class="flex-1 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded bg-white/80 dark:bg-gray-700/80 text-gray-900 dark:text-white text-sm"
                                 placeholder="اسم النموذج">
-                            <button onclick="removeCustomProviderModel(${index}, ${modelIndex})" 
+                            <button data-action="removeCustomProviderModel" data-provider-index="${index}" data-model-index="${modelIndex}"
                                 class="p-1 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 transition-colors">
                                 <i class="fas fa-times text-xs"></i>
                             </button>
@@ -384,19 +384,19 @@ export function renderCustomModels() {
                     <div>
                         <label class="form-label">اسم النموذج</label>
                         <input type="text" value="${model.name}" 
-                            onchange="updateCustomModelName(${index}, this.value)"
+                            data-action="updateCustomModelName" data-index="${index}"
                             class="form-input"
                             placeholder="اسم النموذج">
                     </div>
                     <div>
                         <label class="form-label">معرف النموذج</label>
                         <input type="text" value="${model.id}" 
-                            onchange="updateCustomModelId(${index}, this.value)"
+                            data-action="updateCustomModelId" data-index="${index}"
                             class="form-input"
                             placeholder="معرف النموذج">
                     </div>
                 </div>
-                <button onclick="removeCustomModel(${index})" 
+                <button data-action="removeCustomModel" data-index="${index}"
                     class="p-2 ml-2 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 transition-colors">
                     <i class="fas fa-trash"></i>
                 </button>
@@ -404,7 +404,7 @@ export function renderCustomModels() {
             <div class="grid grid-cols-2 gap-3 mb-3">
                 <div>
                     <label class="form-label">المزود</label>
-                    <select onchange="updateCustomModelProvider(${index}, this.value)" class="form-input">
+                    <select data-action="updateCustomModelProvider" data-index="${index}" class="form-input">
                         <option value="gemini" ${model.provider === 'gemini' ? 'selected' : ''}>Google Gemini</option>
                         <option value="openrouter" ${model.provider === 'openrouter' ? 'selected' : ''}>OpenRouter</option>
                         ${settings.customProviders.map(p => `
@@ -415,14 +415,14 @@ export function renderCustomModels() {
                 <div>
                     <label class="form-label">درجة الحرارة الافتراضية</label>
                     <input type="number" min="0" max="1" step="0.1" value="${model.defaultTemperature || 0.7}" 
-                        onchange="updateCustomModelTemperature(${index}, this.value)"
+                        data-action="updateCustomModelTemperature" data-index="${index}"
                         class="form-input"
                         placeholder="0.7">
                 </div>
             </div>
             <div>
                 <label class="form-label">وصف النموذج</label>
-                <textarea onchange="updateCustomModelDescription(${index}, this.value)" 
+                <textarea data-action="updateCustomModelDescription" data-index="${index}"
                     class="form-input form-textarea"
                     placeholder="وصف مختصر للنموذج">${model.description || ''}</textarea>
             </div>
@@ -524,7 +524,7 @@ export function displayFilePreview(files) {
             </div>
             <span class="text-gray-200 mr-2">${file.name}</span>
             <span class="text-gray-400 text-xs mr-2">(${fileSize})</span>
-            <button onclick="removeFileFromPreview(${index})" class="text-gray-400 hover:text-gray-200 ml-1">
+            <button data-action="removeFileFromPreview" data-index="${index}" class="text-gray-400 hover:text-gray-200 ml-1">
                 <i class="fas fa-times text-xs"></i>
             </button>
         `;
@@ -756,25 +756,20 @@ export function displayChatHistory() {
         
         chatItem.innerHTML = `
             <div class="flex items-center justify-between">
-                <div class="flex-1 min-w-0" id="chat-title-container-${chat.id}">
+                <div class="flex-1 min-w-0" id="chat-title-container-${chat.id}" data-action="switchToChat" data-chat-id="${chat.id}">
                     <h4 class="font-medium truncate">${escapeHtml(chat.title)}</h4>
                     <p class="text-sm opacity-70 truncate">${escapeHtml(preview)}</p>
                 </div>
                 <div class="flex items-center ml-2 space-x-1 space-x-reverse">
-                    <button onclick="toggleEditChatTitle('${chat.id}', event)" class="p-1 rounded hover:bg-white/20 text-gray-300 hover:text-white transition-colors" title="تعديل الاسم">
+                    <button data-action="toggleEditChatTitle" data-chat-id="${chat.id}" class="p-1 rounded hover:bg-white/20 text-gray-300 hover:text-white transition-colors" title="تعديل الاسم">
                         <i class="fas fa-pen text-xs"></i>
                     </button>
-                    <button onclick="deleteChat('${chat.id}', event)" class="p-1 rounded hover:bg-red-500/20 text-red-400 hover:text-red-300 transition-colors" title="حذف المحادثة">
+                    <button data-action="deleteChat" data-chat-id="${chat.id}" class="p-1 rounded hover:bg-red-500/20 text-red-400 hover:text-red-300 transition-colors" title="حذف المحادثة">
                         <i class="fas fa-trash text-xs"></i>
                     </button>
                 </div>
             </div>
         `;
-        
-        chatItem.onclick = (e) => {
-            if (e.target.closest('button')) return;
-            switchToChat(chat.id);
-        };
         
         // Add drag and drop event listeners
         chatItem.addEventListener('dragstart', handleDragStart);
@@ -1049,7 +1044,7 @@ export function addCodeHeader(preElement) {
     header.className = 'code-header-new';
     header.innerHTML = `
         <span class="language-label">${language}</span>
-        <button class="copy-button-new" onclick="copyCode(this)">
+        <button class="copy-button-new" data-action="copyCode">
             <i class="fas fa-copy"></i>
             <span>نسخ</span>
         </button>
@@ -1087,10 +1082,10 @@ export function addMessageActions(messageElement, content) {
     const actions = document.createElement('div');
     actions.className = 'message-actions';
     actions.innerHTML = `
-        <button onclick="copyMessage(this)" class="p-1 rounded text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-white/10" data-tooltip="نسخ">
+        <button data-action="copyMessage" class="p-1 rounded text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-white/10" data-tooltip="نسخ">
             <i class="fas fa-copy text-xs"></i>
         </button>
-        <button onclick="regenerateMessage(this)" class="p-1 rounded text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-white/10" data-tooltip="إعادة توليد">
+        <button data-action="regenerateMessage" class="p-1 rounded text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-white/10" data-tooltip="إعادة توليد">
             <i class="fas fa-redo text-xs"></i>
         </button>
     `;

@@ -92,11 +92,11 @@ export function renderGeminiApiKeys() {
         keyDiv.innerHTML = `
             <div class="relative flex-1">
                 <input type="password" value="${apiKey.key}" 
-                    onchange="updateGeminiApiKey(${index}, this.value)"
+                    data-action="updateGeminiApiKey" data-index="${index}"
                     id="geminiApiKeyInput-${index}"
                     class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white/80 dark:bg-gray-700/80 text-gray-900 dark:text-white text-base pl-10 backdrop-blur-sm"
                     placeholder="أدخل مفتاح Gemini API">
-                <button type="button" onclick="toggleGeminiApiKeyVisibility(${index})" 
+                <button type="button" data-action="toggleGeminiApiKeyVisibility" data-index="${index}"
                     class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
                     <i id="geminiApiKeyToggleIcon-${index}" class="fas fa-eye"></i>
                 </button>
@@ -105,7 +105,7 @@ export function renderGeminiApiKeys() {
                 <span class="status-indicator ${apiKey.status === 'active' ? 'bg-green-500' : 'bg-red-500'} w-3 h-3 rounded-full"></span>
                 <span class="text-xs text-gray-500 dark:text-gray-400">${apiKey.status === 'active' ? 'نشط' : 'معطل'}</span>
             </div>
-            <button onclick="removeGeminiApiKey(${index})" 
+            <button data-action="removeGeminiApiKey" data-index="${index}"
                 class="p-2 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 transition-colors">
                 <i class="fas fa-trash text-sm"></i>
             </button>
@@ -167,11 +167,11 @@ export function renderOpenRouterApiKeys() {
         keyDiv.innerHTML = `
             <div class="relative flex-1">
                 <input type="password" value="${apiKey.key}" 
-                    onchange="updateOpenRouterApiKey(${index}, this.value)"
+                    data-action="updateOpenRouterApiKey" data-index="${index}"
                     id="openrouterApiKeyInput-${index}"
                     class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white/80 dark:bg-gray-700/80 text-gray-900 dark:text-white text-base pl-10 backdrop-blur-sm"
                     placeholder="أدخل مفتاح OpenRouter API">
-                <button type="button" onclick="toggleOpenRouterApiKeyVisibility(${index})" 
+                <button type="button" data-action="toggleOpenRouterApiKeyVisibility" data-index="${index}"
                     class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
                     <i id="openrouterApiKeyToggleIcon-${index}" class="fas fa-eye"></i>
                 </button>
@@ -180,7 +180,7 @@ export function renderOpenRouterApiKeys() {
                 <span class="status-indicator ${apiKey.status === 'active' ? 'bg-green-500' : 'bg-red-500'} w-3 h-3 rounded-full"></span>
                 <span class="text-xs text-gray-500 dark:text-gray-400">${apiKey.status === 'active' ? 'نشط' : 'معطل'}</span>
             </div>
-            <button onclick="removeOpenRouterApiKey(${index})" 
+            <button data-action="removeOpenRouterApiKey" data-index="${index}"
                 class="p-2 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 transition-colors">
                 <i class="fas fa-trash text-sm"></i>
             </button>
