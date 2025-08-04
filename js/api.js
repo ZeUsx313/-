@@ -1,7 +1,34 @@
-import { settings, chats, currentChatId, streamingState } from './state.js';
-import { appendToStreamingMessage, createFileCard, displayUserMessage, showNotification } from './ui.js';
+import { settings, chats, currentChatId, streamingState, saveData } from './state.js';
+import { appendToStreamingMessage, createFileCard, displayUserMessage, showNotification, displayChatHistory } from './ui.js';
 import { processAttachedFiles } from './fileHandler.js';
-import { saveData } from './state.js';
+
+// Chat management functions
+export async function startNewChat() {
+    const chatId = Date.now().toString();
+
+    // This is a bit of a hack to avoid circular dependencies.
+    // We need to update the global state directly.
+    let state = await import('./state.js');
+    state.currentChatId = chatId;
+
+    const now = Date.now();
+    chats[chatId] = {
+        id: chatId,
+        title: 'محادثة جديدة',
+        messages: [],
+        createdAt: now,
+        updatedAt: now,
+        order: now // Used for drag-and-drop reordering
+    };
+
+    document.getElementById('welcomeScreen').classList.remove('hidden');
+    document.getElementById('messagesContainer').classList.add('hidden');
+    document.getElementById('messagesArea').innerHTML = '';
+
+    displayChatHistory();
+    saveData();
+}
+
 
 // Enhanced message sending with streaming
 export async function sendMessage() {

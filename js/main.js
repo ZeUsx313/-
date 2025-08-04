@@ -1,12 +1,33 @@
-import { currentChatId, chats, settings, providers } from './state.js';
-import { initializeDarkMode, loadSettingsUI, updateFontSize, updateSendButton, displayChatHistory, updateProviderUI, displayMessages, displayChatHistory, closeSidebar, updateChatTitle, openSettings, closeSettings, openCustomProvidersManager, closeCustomProvidersManager, addCustomProvider, removeCustomProvider, updateCustomProviderName, updateCustomProviderBaseUrl, addCustomProviderModel, removeCustomProviderModel, updateCustomProviderModelId, updateCustomProviderModelName, updateProviderSelect, openCustomModelsManager, closeCustomModelsManager, renderCustomModels, addCustomModel, removeCustomModel, updateCustomModelName, updateCustomModelId, updateCustomModelProvider, updateCustomModelTemperature, updateCustomModelDescription, addGeminiApiKeyField, removeGeminiApiKey, updateGeminiApiKey, toggleGeminiApiKeyVisibility, addOpenRouterApiKeyField, removeOpenRouterApiKey, updateOpenRouterApiKey, toggleOpenRouterApiKeyVisibility, handleFileSelection, removeFileFromPreview, clearFileInput, handleDragStart, handleDragEnter, handleDragOver, handleDragLeave, handleDrop, handleDragEnd } from './ui.js';
-import { sendMessage } from './api.js';
+import { currentChatId, chats, loadData } from './state.js';
+import {
+    initializeDarkMode, updateFontSize, updateSendButton, displayChatHistory,
+    updateProviderUI, displayMessages, closeSidebar, updateChatTitle,
+    openCustomProvidersManager, closeCustomProvidersManager, addCustomProvider,
+    removeCustomProvider, updateCustomProviderName, updateCustomProviderBaseUrl,
+    addCustomProviderModel, removeCustomProviderModel, updateCustomProviderModelId,
+    updateCustomProviderModelName, updateProviderSelect, openCustomModelsManager,
+    closeCustomModelsManager, addCustomModel, removeCustomModel, updateCustomModelName,
+    updateCustomModelId, updateCustomModelProvider, updateCustomModelTemperature,
+    updateCustomModelDescription, handleFileSelection, removeFileFromPreview,
+    clearFileInput, deleteChat, switchToChat, toggleEditChatTitle, copyCode,
+    copyMessage, regenerateMessage, openSidebar, toggleDarkMode,
+    updateCustomProviderApiKeyValue, toggleCustomProviderApiKeyVisibility, removeCustomProviderApiKey, addCustomProviderApiKey,
+    updateModelOptions
+} from './ui.js';
+import {
+    openSettings, closeSettings, saveSettings, addGeminiApiKeyField,
+    removeGeminiApiKey, updateGeminiApiKey, toggleGeminiApiKeyVisibility,
+    renderGeminiApiKeys, addOpenRouterApiKeyField, removeOpenRouterApiKey,
+    updateOpenRouterApiKey, toggleOpenRouterApiKeyVisibility, renderOpenRouterApiKeys,
+    updateCustomProviders
+} from './settings.js';
+import { sendMessage, startNewChat } from './api.js';
 
 // Initialize app
 document.addEventListener('DOMContentLoaded', function() {
     initializeDarkMode();
     loadData();
-    updateCustomProviders(); // تحديث المزودين المخصصين
+    updateCustomProviders(); // Now imported from settings.js
     updateSendButton();
     initializeEventListeners();
     displayChatHistory();
@@ -18,24 +39,6 @@ document.addEventListener('DOMContentLoaded', function() {
         displayMessages();
     }
 });
-
-// تحديث المزودين المخصصين في كائن providers
-export function updateCustomProviders() {
-    // إزالة المزودين المخصصين القدامى
-    Object.keys(providers).forEach(key => {
-        if (key.startsWith('custom_')) {
-            delete providers[key];
-        }
-    });
-    
-    // إضافة المزودين المخصصين الجدد
-    settings.customProviders.forEach(provider => {
-        providers[provider.id] = {
-            name: provider.name,
-            models: provider.models || []
-        };
-    });
-}
 
 function initializeEventListeners() {
     const messageInput = document.getElementById('messageInput');
@@ -80,33 +83,6 @@ function initializeEventListeners() {
         });
     }
 }
-
-// Chat management functions
-export async function startNewChat() {
-    const chatId = Date.now().toString();
-    currentChatId = chatId;
-    const now = Date.now();
-    chats[chatId] = {
-        id: chatId,
-        title: 'محادثة جديدة',
-        messages: [],
-        createdAt: now,
-        updatedAt: now,
-        order: now // Used for drag-and-drop reordering
-    };
-    
-    document.getElementById('welcomeScreen').classList.remove('hidden');
-    document.getElementById('messagesContainer').classList.add('hidden');
-    document.getElementById('messagesArea').innerHTML = '';
-    
-    displayChatHistory();
-    saveData();
-}
-
-// Data persistence
-
-
-
 
 // Attach exported functions to the global window object to make them accessible from inline HTML event handlers.
 // This is a temporary solution to fulfill the "no logic change" requirement.
@@ -154,6 +130,7 @@ window.startNewChat = startNewChat;
 window.sendMessage = sendMessage;
 window.handleFileSelection = handleFileSelection;
 window.removeFileFromPreview = removeFileFromPreview;
+window.clearFileInput = clearFileInput; // This was missing from the window assignments
 window.deleteChat = deleteChat;
 window.switchToChat = switchToChat;
 window.toggleEditChatTitle = toggleEditChatTitle;
@@ -161,6 +138,3 @@ window.copyCode = copyCode;
 window.copyMessage = copyMessage;
 window.regenerateMessage = regenerateMessage;
 window.updateProviderUI = updateProviderUI;
-
-import { loadData } from './state.js';
-

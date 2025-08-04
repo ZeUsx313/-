@@ -1,7 +1,7 @@
 import { chats, currentChatId, streamingState, settings, providers, draggedChatId } from './state.js';
-import { updateCustomProviders } from './main.js';
+import { updateCustomProviders } from './settings.js';
 import { saveData } from './state.js';
-import { startNewChat, sendMessage } from './api.js';
+import { sendMessage } from './api.js';
 import { processAttachedFiles } from './fileHandler.js';
 import { getFileTypeInfo, formatFileSize, readFileAsText } from './fileHandler.js';
 

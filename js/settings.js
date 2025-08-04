@@ -1,7 +1,24 @@
-import { settings } from './state.js';
+import { settings, providers, saveData } from './state.js';
 import { updateProviderUI, updateModelOptions, showNotification, updateFontSize } from './ui.js';
 import { renderCustomProviders, updateProviderSelect, renderCustomApiKeys, updateCustomProviderApiKeysUI } from './ui.js';
-import { saveData } from './main.js';
+
+// تحديث المزودين المخصصين في كائن providers
+export function updateCustomProviders() {
+    // إزالة المزودين المخصصين القدامى
+    Object.keys(providers).forEach(key => {
+        if (key.startsWith('custom_')) {
+            delete providers[key];
+        }
+    });
+
+    // إضافة المزودين المخصصين الجدد
+    settings.customProviders.forEach(provider => {
+        providers[provider.id] = {
+            name: provider.name,
+            models: provider.models || []
+        };
+    });
+}
 
 // Settings and data management
 export function openSettings() {
