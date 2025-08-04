@@ -23,6 +23,62 @@ import {
 } from './settings.js';
 import { sendMessage, startNewChat } from './api.js';
 
+// Attach exported functions to the global window object to make them accessible from inline HTML event handlers.
+// This is a temporary solution to fulfill the "no logic change" requirement.
+window.openSettings = openSettings;
+window.closeSettings = closeSettings;
+window.saveSettings = saveSettings;
+window.openCustomProvidersManager = openCustomProvidersManager;
+window.closeCustomProvidersManager = closeCustomProvidersManager;
+window.addCustomProvider = addCustomProvider;
+window.removeCustomProvider = removeCustomProvider;
+window.updateCustomProviderName = updateCustomProviderName;
+window.updateCustomProviderBaseUrl = updateCustomProviderBaseUrl;
+window.addCustomProviderModel = addCustomProviderModel;
+window.removeCustomProviderModel = removeCustomProviderModel;
+window.updateCustomProviderModelId = updateCustomProviderModelId;
+window.updateCustomProviderModelName = updateCustomProviderModelName;
+window.updateProviderSelect = updateProviderSelect;
+window.updateCustomProviderApiKeyValue = updateCustomProviderApiKeyValue;
+window.toggleCustomProviderApiKeyVisibility = toggleCustomProviderApiKeyVisibility;
+window.removeCustomProviderApiKey = removeCustomProviderApiKey;
+window.addCustomProviderApiKey = addCustomProviderApiKey;
+window.openCustomModelsManager = openCustomModelsManager;
+window.closeCustomModelsManager = closeCustomModelsManager;
+window.addCustomModel = addCustomModel;
+window.removeCustomModel = removeCustomModel;
+window.updateCustomModelName = updateCustomModelName;
+window.updateCustomModelId = updateCustomModelId;
+window.updateCustomModelProvider = updateCustomModelProvider;
+window.updateCustomModelTemperature = updateCustomModelTemperature;
+window.updateCustomModelDescription = updateCustomModelDescription;
+window.renderGeminiApiKeys = renderGeminiApiKeys;
+window.addGeminiApiKeyField = addGeminiApiKeyField;
+window.removeGeminiApiKey = removeGeminiApiKey;
+window.updateGeminiApiKey = updateGeminiApiKey;
+window.toggleGeminiApiKeyVisibility = toggleGeminiApiKeyVisibility;
+window.renderOpenRouterApiKeys = renderOpenRouterApiKeys;
+window.addOpenRouterApiKeyField = addOpenRouterApiKeyField;
+window.removeOpenRouterApiKey = removeOpenRouterApiKey;
+window.updateOpenRouterApiKey = updateOpenRouterApiKey;
+window.toggleOpenRouterApiKeyVisibility = toggleOpenRouterApiKeyVisibility;
+window.openSidebar = openSidebar;
+window.closeSidebar = closeSidebar;
+window.toggleDarkMode = toggleDarkMode;
+window.startNewChat = startNewChat;
+window.sendMessage = sendMessage;
+window.handleFileSelection = handleFileSelection;
+window.removeFileFromPreview = removeFileFromPreview;
+window.clearFileInput = clearFileInput;
+window.deleteChat = deleteChat;
+window.switchToChat = switchToChat;
+window.toggleEditChatTitle = toggleEditChatTitle;
+window.copyCode = copyCode;
+window.copyMessage = copyMessage;
+window.regenerateMessage = regenerateMessage;
+window.updateProviderUI = updateProviderUI;
+
+
 // Initialize app
 document.addEventListener('DOMContentLoaded', function() {
     initializeDarkMode();
@@ -84,57 +140,4 @@ function initializeEventListeners() {
     }
 }
 
-// Attach exported functions to the global window object to make them accessible from inline HTML event handlers.
-// This is a temporary solution to fulfill the "no logic change" requirement.
-window.openSettings = openSettings;
-window.closeSettings = closeSettings;
-window.saveSettings = saveSettings;
-window.openCustomProvidersManager = openCustomProvidersManager;
-window.closeCustomProvidersManager = closeCustomProvidersManager;
-window.addCustomProvider = addCustomProvider;
-window.removeCustomProvider = removeCustomProvider;
-window.updateCustomProviderName = updateCustomProviderName;
-window.updateCustomProviderBaseUrl = updateCustomProviderBaseUrl;
-window.addCustomProviderModel = addCustomProviderModel;
-window.removeCustomProviderModel = removeCustomProviderModel;
-window.updateCustomProviderModelId = updateCustomProviderModelId;
-window.updateCustomProviderModelName = updateCustomProviderModelName;
-window.updateProviderSelect = updateProviderSelect;
-window.updateCustomProviderApiKeyValue = updateCustomProviderApiKeyValue;
-window.toggleCustomProviderApiKeyVisibility = toggleCustomProviderApiKeyVisibility;
-window.removeCustomProviderApiKey = removeCustomProviderApiKey;
-window.addCustomProviderApiKey = addCustomProviderApiKey;
-window.openCustomModelsManager = openCustomModelsManager;
-window.closeCustomModelsManager = closeCustomModelsManager;
-window.addCustomModel = addCustomModel;
-window.removeCustomModel = removeCustomModel;
-window.updateCustomModelName = updateCustomModelName;
-window.updateCustomModelId = updateCustomModelId;
-window.updateCustomModelProvider = updateCustomModelProvider;
-window.updateCustomModelTemperature = updateCustomModelTemperature;
-window.updateCustomModelDescription = updateCustomModelDescription;
-window.renderGeminiApiKeys = renderGeminiApiKeys;
-window.addGeminiApiKeyField = addGeminiApiKeyField;
-window.removeGeminiApiKey = removeGeminiApiKey;
-window.updateGeminiApiKey = updateGeminiApiKey;
-window.toggleGeminiApiKeyVisibility = toggleGeminiApiKeyVisibility;
-window.renderOpenRouterApiKeys = renderOpenRouterApiKeys;
-window.addOpenRouterApiKeyField = addOpenRouterApiKeyField;
-window.removeOpenRouterApiKey = removeOpenRouterApiKey;
-window.updateOpenRouterApiKey = updateOpenRouterApiKey;
-window.toggleOpenRouterApiKeyVisibility = toggleOpenRouterApiKeyVisibility;
-window.openSidebar = openSidebar;
-window.closeSidebar = closeSidebar;
-window.toggleDarkMode = toggleDarkMode;
-window.startNewChat = startNewChat;
-window.sendMessage = sendMessage;
-window.handleFileSelection = handleFileSelection;
-window.removeFileFromPreview = removeFileFromPreview;
-window.clearFileInput = clearFileInput; // This was missing from the window assignments
-window.deleteChat = deleteChat;
-window.switchToChat = switchToChat;
-window.toggleEditChatTitle = toggleEditChatTitle;
-window.copyCode = copyCode;
-window.copyMessage = copyMessage;
-window.regenerateMessage = regenerateMessage;
-window.updateProviderUI = updateProviderUI;
+// The window attachment code has been moved to the top of the file.
