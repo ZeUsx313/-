@@ -1,3 +1,6 @@
+// API Endpoint for the backend
+const API_ENDPOINT = '/api/chat';
+
 // Global state
 let currentChatId = null;
 let chats = {};
@@ -938,29 +941,10 @@ async function sendMessage() {
     const message = input.value.trim();
     const files = Array.from(fileInput.files);
     
-    // Check for API keys before proceeding
-    const provider = settings.provider;
-    let hasValidApiKey = false;
+    // The API key check is no longer needed on the frontend.
+    // The backend will handle API key management.
     
-    if (provider === 'gemini') {
-        hasValidApiKey = settings.geminiApiKeys && settings.geminiApiKeys.some(key => key.status === 'active' && key.key.trim());
-    } else if (provider === 'openrouter') {
-        hasValidApiKey = settings.openrouterApiKeys && settings.openrouterApiKeys.some(key => key.status === 'active' && key.key.trim());
-    } else if (provider.startsWith('custom_')) {
-        const customProvider = settings.customProviders.find(p => p.id === provider);
-        hasValidApiKey = customProvider && customProvider.apiKeys && customProvider.apiKeys.some(key => key.status === 'active' && key.key.trim());
-    }
-    
-    if (!hasValidApiKey) {
-        console.error('No valid API keys found for provider:', provider);
-        console.error('Available keys:', provider === 'gemini' ? settings.geminiApiKeys : 
-                      provider === 'openrouter' ? settings.openrouterApiKeys :
-                      'Custom provider keys');
-        showNotification('لا توجد مفاتيح API نشطة. يرجى إضافة مفتاح API في الإعدادات.', 'error');
-        return;
-    }
-    
-    console.log('Sending message with provider:', provider, 'model:', settings.model);
+    console.log('Sending message to backend with provider:', settings.provider, 'model:', settings.model);
     
     // Disable input during processing
     input.disabled = true;
@@ -1008,7 +992,7 @@ async function sendMessage() {
         document.getElementById('messagesContainer').classList.remove('hidden');
         
         // Create streaming message for assistant response
-        const streamingMessageId = createStreamingMessage();
+        createStreamingMessage();
         
         // Send to AI with streaming
         await sendToAIWithStreaming(chats[currentChatId].messages, attachments);
@@ -1019,7 +1003,7 @@ async function sendMessage() {
         
         // Complete streaming message with error
         if (streamingState.isStreaming) {
-            appendToStreamingMessage('\n\n❌ عذراً، حدث خطأ أثناء معالجة طلبك. يرجى التحقق من مفاتيح API والمحاولة مرة أخرى.', true);
+            appendToStreamingMessage('\n\n❌ عذراً، حدث خطأ أثناء معالجة طلبك. يرجى المحاولة مرة أخرى.', true);
         }
     } finally {
         // Re-enable input
@@ -1050,24 +1034,89 @@ function displayUserMessage(message) {
     scrollToBottom();
 }
 
-async function sendToAIWithStreaming(messages, attachments) {
-    const provider = settings.provider;
-    const model = settings.model;
-    
-    try {
-        if (provider === 'gemini') {
-            await sendToGeminiSimple(messages, attachments);
-        } else if (provider === 'openrouter') {
-            await sendToOpenRouterSimple(messages, attachments);
-        } else if (provider.startsWith('custom_')) {
-            await sendToCustomProviderSimple(messages, attachments, provider);
+// ----------------------------------------------------------------------------------
+// NEW: Functions to communicate with the local backend server
+// ----------------------------------------------------------------------------------
+
+async function sendToAIWithStreaming(chatHistory, attachments) {
+    // 1. تجميع البيانات المطلوبة في كائن payload
+    const payload = {
+        chatHistory: chatHistory,
+        attachments: attachments.map(file => {
+            // نرسل فقط البيانات الضرورية للخادم
+            return {
+                name: file.name,
+                type: file.type,
+                size: file.size,
+                content: file.content, // Base64 for images, text for others
+                dataType: file.dataType,
+                mimeType: file.mimeType
+            };
+        }),
+        settings: {
+            provider: settings.provider,
+            model: settings.model,
+            temperature: settings.temperature,
+            customPrompt: settings.customPrompt,
+            // لا نرسل مفاتيح API، الخادم هو من سيتعامل معها
         }
+    };
+
+    // 2. استدعاء الدالة الجديدة التي تتصل بالخادم
+    try {
+        await sendRequestToServer(payload);
     } catch (error) {
-        console.error('API error:', error);
-        throw error;
+        console.error('Error sending request to server:', error);
+        // عرض الخطأ في الواجهة
+        appendToStreamingMessage(`\n\n❌ حدث خطأ أثناء الاتصال بالخادم: ${error.message}`, true);
     }
 }
 
+
+async function sendRequestToServer(payload) {
+    try {
+        const response = await fetch(API_ENDPOINT, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('Server Error:', response.status, errorText);
+            throw new Error(`خطأ من الخادم: ${response.status} - ${errorText}`);
+        }
+
+        // معالجة الرد المتدفق
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder('utf-8');
+
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) {
+                break;
+            }
+            const chunk = decoder.decode(value, { stream: true });
+            appendToStreamingMessage(chunk);
+        }
+
+        // إنهاء البث
+        appendToStreamingMessage('', true);
+
+    } catch (error) {
+        console.error('Fetch error:', error);
+        throw error; // إعادة رمي الخطأ ليتم التعامل معه في دالة sendMessage
+    }
+}
+
+
+// ----------------------------------------------------------------------------------
+// OLD: Direct API communication functions (now disabled/commented out)
+// ----------------------------------------------------------------------------------
+
+/*
 async function sendToGeminiSimple(messages, attachments) {
     const apiKeys = settings.geminiApiKeys.filter(key => key.status === 'active').map(key => key.key);
     if (apiKeys.length === 0) {
@@ -1392,6 +1441,7 @@ async function sendToCustomProviderSimple(messages, attachments, providerId) {
         timestamp: Date.now()
     });
 }
+*/
 
 // Rest of the existing functions (chat management, UI functions, etc.)
 function escapeHtml(text) {
