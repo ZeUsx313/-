@@ -11,6 +11,20 @@ const CONFIG = {
         RETRY_ATTEMPTS: 3
     },
 
+    // Database Configuration
+    DATABASE: {
+        MONGODB_URI: 'mongodb+srv://gar86912:M1uEr2lDkKJyrrlb@zeuss.3duzako.mongodb.net/?retryWrites=true&w=majority&appName=Zeuss',
+        DATABASE_NAME: 'chatzeus',
+        COLLECTIONS: {
+            AGENTS: 'agents',
+            API_KEYS: 'api_keys',
+            CONVERSATIONS: 'conversations',
+            PROJECTS: 'projects',
+            FILES: 'fs.files',
+            CHUNKS: 'fs.chunks'
+        }
+    },
+
     // AI Providers Configuration
     PROVIDERS: {
         OPENAI: {
