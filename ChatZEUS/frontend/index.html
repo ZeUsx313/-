@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChatZEUS - نظام الذكاء الاصطناعي متعدد الوكلاء</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="light-theme">
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <div class="logo">
+                <i class="fas fa-robot"></i>
+                <h1>ChatZEUS</h1>
+            </div>
+            <div class="header-controls">
+                <button id="theme-toggle" class="theme-toggle">
+                    <i class="fas fa-moon"></i>
+                </button>
+                <button id="settings-btn" class="settings-btn">
+                    <i class="fas fa-cog"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <div class="main-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-section">
+                <h3>الوكلاء</h3>
+                <button id="add-agent-btn" class="add-btn">
+                    <i class="fas fa-plus"></i>
+                    إضافة وكيل
+                </button>
+                <div id="agents-list" class="agents-list">
+                    <!-- Agents will be populated here -->
+                </div>
+            </div>
+
+            <div class="sidebar-section">
+                <h3>المشاريع</h3>
+                <button id="add-project-btn" class="add-btn">
+                    <i class="fas fa-plus"></i>
+                    مشروع جديد
+                </button>
+                <div id="projects-list" class="projects-list">
+                    <!-- Projects will be populated here -->
+                </div>
+            </div>
+
+            <div class="sidebar-section">
+                <h3>الملفات</h3>
+                <button id="upload-files-btn" class="add-btn">
+                    <i class="fas fa-upload"></i>
+                    رفع ملفات
+                </button>
+                <div id="files-list" class="files-list">
+                    <!-- Files will be populated here -->
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Project Header -->
+            <div class="project-header">
+                <div class="project-info">
+                    <h2 id="current-project-title">مشروع جديد</h2>
+                    <p id="current-project-desc">ابدأ مشروعك مع ChatZEUS</p>
+                </div>
+                <div class="project-actions">
+                    <button id="start-task-btn" class="primary-btn">
+                        <i class="fas fa-play"></i>
+                        بدء المهمة
+                    </button>
+                    <button id="export-btn" class="secondary-btn">
+                        <i class="fas fa-download"></i>
+                        تصدير
+                    </button>
+                </div>
+            </div>
+
+            <!-- Task Input -->
+            <div class="task-input-section">
+                <div class="task-input-container">
+                    <textarea id="task-input" placeholder="اكتب المهمة المطلوب تنفيذها هنا..."></textarea>
+                    <button id="submit-task-btn" class="submit-btn">
+                        <i class="fas fa-paper-plane"></i>
+                        إرسال
+                    </button>
+                </div>
+            </div>
+
+            <!-- Conversation Area -->
+            <div class="conversation-area">
+                <div id="conversation-container" class="conversation-container">
+                    <!-- Welcome Message -->
+                    <div class="welcome-message">
+                        <div class="welcome-icon">
+                            <i class="fas fa-robot"></i>
+                        </div>
+                        <h3>مرحباً بك في ChatZEUS</h3>
+                        <p>نظام الذكاء الاصطناعي متعدد الوكلاء</p>
+                        <div class="welcome-steps">
+                            <div class="step">
+                                <i class="fas fa-user-plus"></i>
+                                <span>أضف الوكلاء</span>
+                            </div>
+                            <div class="step">
+                                <i class="fas fa-upload"></i>
+                                <span>ارفع الملفات</span>
+                            </div>
+                            <div class="step">
+                                <i class="fas fa-tasks"></i>
+                                <span>اكتب المهمة</span>
+                            </div>
+                            <div class="step">
+                                <i class="fas fa-play"></i>
+                                <span>ابدأ العمل</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modals -->
+    
+    <!-- Add Agent Modal -->
+    <div id="agent-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>إضافة وكيل جديد</h3>
+                <button class="close-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="agent-form">
+                    <div class="form-group">
+                        <label for="agent-name">اسم الوكيل</label>
+                        <input type="text" id="agent-name" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="agent-role">الدور/التخصص</label>
+                        <input type="text" id="agent-role" placeholder="مثال: برمجة، تحليل، مراجعة">
+                    </div>
+                    <div class="form-group">
+                        <label for="agent-model">النموذج</label>
+                        <select id="agent-model" required>
+                            <option value="">اختر النموذج</option>
+                            <option value="gpt-4">GPT-4</option>
+                            <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+                            <option value="claude-3">Claude-3</option>
+                            <option value="gemini-pro">Gemini Pro</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="agent-provider">المزود</label>
+                        <select id="agent-provider" required>
+                            <option value="">اختر المزود</option>
+                            <option value="openai">OpenAI</option>
+                            <option value="anthropic">Anthropic</option>
+                            <option value="google">Google</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="agent-avatar">الصورة الرمزية</label>
+                        <input type="text" id="agent-avatar" placeholder="رابط الصورة أو اترك فارغاً للصورة الافتراضية">
+                    </div>
+                    <div class="form-group">
+                        <label for="agent-description">وصف الوكيل</label>
+                        <textarea id="agent-description" rows="3" placeholder="وصف مختصر لشخصية وأسلوب الوكيل"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="secondary-btn" id="cancel-agent">إلغاء</button>
+                <button type="submit" form="agent-form" class="primary-btn">إضافة الوكيل</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>الإعدادات</h3>
+                <button class="close-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="settings-tabs">
+                    <button class="tab-btn active" data-tab="api-keys">مفاتيح API</button>
+                    <button class="tab-btn" data-tab="general">عام</button>
+                    <button class="tab-btn" data-tab="appearance">المظهر</button>
+                </div>
+                
+                <div class="tab-content active" id="api-keys-tab">
+                    <div class="api-keys-section">
+                        <h4>إدارة مفاتيح API</h4>
+                        <div class="provider-keys">
+                            <div class="provider-section">
+                                <h5>OpenAI</h5>
+                                <div class="keys-list" id="openai-keys">
+                                    <!-- OpenAI keys will be here -->
+                                </div>
+                                <button class="add-key-btn" data-provider="openai">
+                                    <i class="fas fa-plus"></i>
+                                    إضافة مفتاح
+                                </button>
+                            </div>
+                            
+                            <div class="provider-section">
+                                <h5>Anthropic</h5>
+                                <div class="keys-list" id="anthropic-keys">
+                                    <!-- Anthropic keys will be here -->
+                                </div>
+                                <button class="add-key-btn" data-provider="anthropic">
+                                    <i class="fas fa-plus"></i>
+                                    إضافة مفتاح
+                                </button>
+                            </div>
+                            
+                            <div class="provider-section">
+                                <h5>Google</h5>
+                                <div class="keys-list" id="google-keys">
+                                    <!-- Google keys will be here -->
+                                </div>
+                                <button class="add-key-btn" data-provider="google">
+                                    <i class="fas fa-plus"></i>
+                                    إضافة مفتاح
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="tab-content" id="general-tab">
+                    <div class="form-group">
+                        <label for="auto-save">حفظ تلقائي</label>
+                        <input type="checkbox" id="auto-save" checked>
+                    </div>
+                    <div class="form-group">
+                        <label for="max-agents">الحد الأقصى للوكلاء</label>
+                        <input type="number" id="max-agents" value="10" min="1" max="20">
+                    </div>
+                </div>
+                
+                <div class="tab-content" id="appearance-tab">
+                    <div class="form-group">
+                        <label for="font-size">حجم الخط</label>
+                        <select id="font-size">
+                            <option value="small">صغير</option>
+                            <option value="medium" selected>متوسط</option>
+                            <option value="large">كبير</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="color-scheme">نظام الألوان</label>
+                        <select id="color-scheme">
+                            <option value="auto">تلقائي</option>
+                            <option value="light">فاتح</option>
+                            <option value="dark">داكن</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- File Upload Modal -->
+    <div id="upload-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>رفع الملفات</h3>
+                <button class="close-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="upload-area" id="upload-area">
+                    <i class="fas fa-cloud-upload-alt"></i>
+                    <p>اسحب وأفلت الملفات هنا أو انقر للاختيار</p>
+                    <input type="file" id="file-input" multiple accept=".txt,.js,.py,.html,.css,.json,.md">
+                </div>
+                <div class="uploaded-files" id="uploaded-files">
+                    <!-- Uploaded files will be shown here -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="secondary-btn" id="cancel-upload">إلغاء</button>
+                <button type="button" class="primary-btn" id="confirm-upload">رفع الملفات</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="loading-overlay">
+        <div class="loading-content">
+            <div class="spinner"></div>
+            <p>جاري معالجة المهمة...</p>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
+    <script src="js/config.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/agents.js"></script>
+    <script src="js/conversation.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
