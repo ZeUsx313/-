@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>محادثة مع الذكاء الاصطناعي</title>
+    <link rel="stylesheet" href="ai-chat.css">
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>🤖 محادثة مع الذكاء الاصطناعي</h1>
+            <p>تحدث معي بحرية وسأحاول مساعدتك</p>
+        </header>
+
+        <main class="chat-container">
+            <div class="chat-messages" id="chatMessages">
+                <div class="message ai-message">
+                    <div class="message-content">
+                        <div class="avatar">🤖</div>
+                        <div class="text">
+                            مرحباً! أنا مساعدك الذكي. كيف يمكنني مساعدتك اليوم؟
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="chat-input-container">
+                <form id="chatForm" class="chat-form">
+                    <div class="input-wrapper">
+                        <input 
+                            type="text" 
+                            id="messageInput" 
+                            placeholder="اكتب رسالتك هنا..."
+                            autocomplete="off"
+                        >
+                        <button type="submit" class="send-btn">
+                            <span>إرسال</span>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                                <path d="M22 2L11 13M22 2L15 22L11 13M22 2L2 9L11 13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </main>
+
+        <footer class="footer">
+            <p>تم إنشاؤه بـ ❤️ للتواصل مع الذكاء الاصطناعي</p>
+        </footer>
+    </div>
+
+    <script src="ai-chat.js"></script>
+</body>
+</html>
